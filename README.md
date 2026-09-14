@@ -13,7 +13,19 @@ This repository holds the hydrodynamics code that I have been developing as a gr
     - Cell8
     - Cell5
     - Cell3
+- Coordinate Free Functions:
+    - sound speed
+    - bondi accretion rate
+- Cartesian Physical Functions:
+- Spherical Physical Functions:
+- Simulation Functions:
+
 #### sim_func.rs
+- Imports and Defining Structs:
+    - InitConds
+    - Driver
+    - Primitives
+    - Conserved
 
 #### math_functions.py
 #### plotting_functions.py

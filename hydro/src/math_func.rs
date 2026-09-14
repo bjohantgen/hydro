@@ -40,11 +40,11 @@ pub fn bondi_accretion_rate(m: f64, a_index: f64, p_infinity: f64, rho_infinity:
 //////////////////////////////////////////
 // Defining Cartesean Physical Functions
 //////////////////////////////////////////
-/*
+
 /// Input:
 /// Output:
 /// Description:
-pub fn total_pressure(prim: Cell8) -> f64 {
+pub fn total_pressure_cart(prim: Cell8) -> f64 {
     let p = prim.0 + 0.5 * (prim.5 * prim.5 + prim.6 * prim.6 + prim.7 * prim.7);
     p
 }
@@ -52,7 +52,7 @@ pub fn total_pressure(prim: Cell8) -> f64 {
 /// Input:
 /// Output:
 /// Description:
-pub fn total_energy(prim: Cell8, a_index: f64) -> f64 {
+pub fn total_energy_cart(prim: Cell8, a_index: f64) -> f64 {
     let e = 0.5 * prim.1 * (prim.2 * prim.2 + prim.3 * prim.3 + prim.4 * prim.4) + prim.0 / (a_index - 1.0) + 0.5 * (prim.5 * prim.5 + prim.6 * prim.6 + prim.7 * prim.7);
     e
 }
@@ -61,8 +61,8 @@ pub fn total_energy(prim: Cell8, a_index: f64) -> f64 {
 /// Output:
 /// Description:
 pub fn flux_x(prim: Cell8, a_index: f64) -> Cell8 {
-    let p = total_pressure(prim);
-    let e = total_energy(prim, a_index);
+    let p = total_pressure_cart(prim);
+    let e = total_energy_cart(prim, a_index);
     let f0 = prim.1 * prim.2;
     let f1 = prim.1 * prim.2 * prim.2 + p - prim.5 * prim.5;
     let f2 = prim.1 * prim.2 * prim.3 - prim.5 * prim.6;
@@ -79,8 +79,8 @@ pub fn flux_x(prim: Cell8, a_index: f64) -> Cell8 {
 /// Output:
 /// Description:
 pub fn flux_y(prim:Cell8, a_index: f64) -> Cell8 {
-    let p = total_pressure(prim);
-    let e = total_energy(prim, a_index);
+    let p = total_pressure_cart(prim);
+    let e = total_energy_cart(prim, a_index);
     let f0 = prim.1 * prim.3;
     let f1 = prim.1 * prim.2 * prim.3 - prim.5 * prim.6;
     let f2 = prim.1 * prim.3 * prim.3 + p - prim.6 * prim.6;
@@ -92,7 +92,7 @@ pub fn flux_y(prim:Cell8, a_index: f64) -> Cell8 {
     let f_y = (f0, f1, f2, f3, f4, f5, f6, f7);
     f_y
 }
-*/
+
 //////////////////////////////////////////
 // Defining Spherical Physical Functions
 //////////////////////////////////////////

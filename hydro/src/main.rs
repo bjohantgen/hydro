@@ -22,9 +22,9 @@ fn main() {
     let icons = sim_func::InitConds{
                         adiabatic_index: 1.4,
                         discontinuity: 0.5,
-                        p: (0.75, 0.75),
-                        rho: (0.5, 0.5),
-                        vx1: (-0.1, -0.1), 
+                        p: (1.0, 0.125),
+                        rho: (1.0, 0.1),
+                        vx1: (0.0, 0.0), 
                         vx2: (0.0, 0.0),
                         vx3: (0.0, 0.0),
                         bx1: (0.0, 0.0),

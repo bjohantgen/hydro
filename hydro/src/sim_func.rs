@@ -70,11 +70,11 @@ pub type Cell3 = (f64, f64, f64);
 //////////////////////////////
 // One Dimensional Functions
 //////////////////////////////
-/*
+
 /// Input:
 /// Output:
 /// Description:
-pub fn init_prims_1d(init_conds: &Init_Conds, drive: &Driver) -> Primitives {
+pub fn init_prims_1d(init_conds: &InitConds, drive: &Driver) -> Primitives {
     let ncells = drive.x1_cell + 2;
 
     let mut init_p = vec![0.0; ncells];
@@ -228,7 +228,7 @@ pub fn prim_from_cons_1d(cons: &Conserved, a_index: f64) -> Primitives {
     
     prims
 }
-
+/*
 /// Input:
 /// Output:
 /// Description:
@@ -484,7 +484,7 @@ pub fn rk_step_1d(prims: &Primitives, cons: &Conserved, a_index: f64, dx: f64, d
     };
 
     cons2
-}
+} */
 
 //////////////////////////////
 // Two Dimensional Functions
@@ -494,7 +494,7 @@ pub fn rk_step_1d(prims: &Primitives, cons: &Conserved, a_index: f64, dx: f64, d
 //////////////////////
 // General Functions
 //////////////////////
-
+/*
 /// Input:
 /// Output:
 /// Description:
