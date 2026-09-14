@@ -1,0 +1,181 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{amsmath}
+\usepackage{layout}
+\usepackage{hyperref}
+
+\title{How to Write MHD}
+\author{Brayden JoHantgen}
+\date{June 5 2026}
+
+\oddsidemargin = 7pt
+\textwidth = 440pt
+
+\begin{document}
+
+\setlength{\parindent}{20pt}
+
+%\maketitle
+\begin{center}
+    \section*{How to Write a Magneto-Hydrodynamics Code}
+    Brayden JoHantgen - Department of Physics and Astronomy, Clemson University
+    \vspace{4mm}
+    \subsection{Introduction}\label{S1}
+\end{center}
+
+This note will describe how to write a magneto-hydrodynamics (MHD) code in a similar manner to the "How To Write A Hydrodynamics Code" note that was written by Weiqun Zhang. This code will be an ideal MHD code. This means that Maxwell's equations can be written in terms of only the magnetic field. Section \ref{S2} presents the equations of MHD. Section \ref{S3} describes how to use an HLL Riemann solver to write a one dimensional, first-order, Newtonian MHD simulation code. Section \ref{S4} describes how to extend this code to higher order. Section \ref{S5} describes how to write a two-dimensional Newtonian MHD code. Tests for the 1D, 2D, and 3D MHD codes can be found at \href{https://www.astro.princeton.edu/~jstone/Athena/tests/}{the Athena Test Code Page}.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\vspace{6mm}
+\begin{center}
+    \subsection{Newtonian MHD Equations}\label{S2}
+\end{center}
+
+The MHD equations are used to describe the behavior of a fluid in the presence of a magnetic field. These equations are written using units that have $G=c=1$. There are four equations that are used to fully describe this behavior:
+\begin{equation}
+    \frac{\partial \rho}{\partial t} + \nabla \cdot (\rho \boldsymbol{v}_j) = 0
+\end{equation} 
+\begin{equation}
+    \frac{\partial \rho \boldsymbol{v}_i}{\partial t} + \nabla \cdot (\rho \boldsymbol{v}_j \boldsymbol{v}_i + \delta_{ij}P_T - \boldsymbol{B}_j \boldsymbol{B}_i) = 0
+\end{equation}
+\begin{equation}
+    \frac{\partial \boldsymbol{B}_i}{\partial t} + \nabla \cdot (\boldsymbol{B}_i \boldsymbol{v}_j - \boldsymbol{B}_j \boldsymbol{v}_i) = 0
+\end{equation}
+\begin{equation}
+    \frac{\partial E}{\partial t} + \nabla \cdot ((E+P
+    _T)\boldsymbol{v}_j - \boldsymbol{B}_j(\boldsymbol{B} \cdot \boldsymbol{v})) = 0
+\end{equation}
+The subscript $j$ denotes the flux direction, while the subscript $i$ denotes each component of the vectors. In total eight equations have been written above, but the subscript $i$ allows them to be written in a more compact way. The first equation is the continuity equation, the second equation corresponds to the three components of the momentum density of the system, the third equation handles the three components of the magnetic fields, and the last equation describes the total energy of the system.
+
+There is a constraint on the system that must be remembered. It is the condition that there are no magnetic monopoles: $\nabla \cdot \boldsymbol{B} = 0$. This constraint is used in the derivation of the equations above, but is important to remember as one formulates the initial magnetic field of a MHD simulation.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\vspace{6mm}
+\begin{center}
+    \subsection{One-Dimensional First-Order Method for Newtonian MHD}\label{S3}
+\end{center} 
+
+The equations describing one-dimensional MHD can be written in one equation:
+\begin{equation}
+    \frac{\partial \boldsymbol{U}}{\partial t} + \frac{\partial \boldsymbol{F}}{\partial x} = 0
+\end{equation} 
+The conserved variable ($\boldsymbol{U}$) and the flux ($\boldsymbol{F}$) can be written as, 
+\begin{equation}
+    \boldsymbol{U} = \begin{bmatrix} \rho \\ \rho v_x \\ \rho v_y \\
+    \rho v_z \\ B_x \\ B_y \\ B_z \\ E\end{bmatrix},   \hspace{3mm}
+    \boldsymbol{F}  = \begin{bmatrix} \rho v_x \\ \rho v_x^2 + P_T - B_x^2 \\ \rho v_x v_y -B_xB_y \\ \rho v_x v_z-B_xB_z \\ 0 \\ B_yv_x - B_xv_y \\ B_zv_x - B_xv_z \\ (E+P_T)v_x -B_x(\boldsymbol{v} \cdot \boldsymbol{B})\end{bmatrix}
+\end{equation} 
+where $\rho$ is the density of the gas, $\boldsymbol{v} = v_x \hat{x} +v_y \hat{y} + v_z \hat{z}$ is the velocity, $\boldsymbol{B} = B_x \hat{x} + B_y \hat{y} + B_z \hat{z}$ is the magnetic field. $E$ is the total energy and is given by:
+\begin{equation}
+    E = \frac{1}{2}\rho v^2 + \rho e + \frac{1}{2}B^2
+\end{equation} 
+where $e$ is the specific internal energy and can be found from the equation of state. For an ideal gas, the equation of state is,
+\begin{equation}
+    P=(\gamma-1)\rho e
+\end{equation} 
+with $\gamma$ being the adiabatic index of the gas. From equation 6, $P_T$ is the total pressure and is given by,
+\begin{equation}
+    P_T = P +\frac{1}{2}B^2
+\end{equation} 
+
+The numerical methods used to simulate MHD are similar to those used to solve hydrodynamics simulations. Equation 1 can be expressed in semi-discrete form:
+\begin{equation}
+    \frac{d\boldsymbol{U}_i}{dt} = L(\boldsymbol{U}) = - \frac{\boldsymbol{F}_{i+1/2} - \boldsymbol{F}_{i-1/2}}{\Delta x}
+\end{equation}
+the subscript $i$ denotes the cell number with its center at $x_i$, $\boldsymbol{F}_{i\pm 1/2}$ are the fluxes at the cell boundaries, and $\Delta x$ is the width of a cell.
+
+Advancing the simulation in time is done using the first-order forward Euler method,
+\begin{equation}
+    \boldsymbol{U}^{n+1} = \boldsymbol{U}^n + \Delta t *L(\boldsymbol{U}^n)
+\end{equation}
+where $\boldsymbol{U}^n$ is the conserved variable at timestep $n$ and $\boldsymbol{U}^{n+1}$ is the conserved variable after advancing after one timestep.
+
+In this note, I will describe how to solve for the fluxes at the cell boundaries using an HLL Riemann solver. From the variables at cell $i$ and $i+1$, we can calculate the flux at the boundary, $x=x_{i+1/2}$. To solve for the boundary of a given left state $\boldsymbol{U}^L$ and right state $\boldsymbol{U}^R$:
+\begin{equation}
+    \boldsymbol{F}^{\text{HLL}}=\frac{\alpha^+ \boldsymbol{F}^L + \alpha^- \boldsymbol{F}^R -\alpha^+ \alpha^- (\boldsymbol{U}^R - \boldsymbol{U}^L)}{\alpha^+ + \alpha^-}
+\end{equation}
+The values of $\alpha^+$ and $\alpha^-$ are related to the minimal and maximal eigenvalues of the Jacobians of the left and right states:
+\begin{equation}
+    \alpha^{\pm}=\text{MAX}[0, \pm \lambda^{\pm}(\boldsymbol{U}^L), \pm \lambda^{\pm}(\boldsymbol{U}^R)]
+\end{equation}
+There are seven eigenvalues that correspond to different waves that are observed in MHD simulations. The speeds of these waves are all related to the sound speed ($c_s = \sqrt{\gamma P/\rho}$) of the gas. Two of the eigenvalues correspond to the Alfv\'en waves with speed, 
+\begin{equation}
+    c_a = \frac{|B_x|}{\sqrt{\rho}}
+\end{equation} 
+Two eigenvalues correspond to the slow magneto-sonic waves with speed,
+\begin{equation}
+    c_{\text{sm}} = \sqrt{\frac{\gamma P + B^2 - \sqrt{(\gamma P + B^2)^2 -4\gamma P B^2_x}}{2 \rho}}
+\end{equation}
+Two eigenvalues correspond to the fast magneto-sonic waves with speed,
+\begin{equation}
+    c_{\text{fm}} = \sqrt{\frac{\gamma P + B^2 + \sqrt{(\gamma P + B^2)^2 -4\gamma P B^2_x}}{2 \rho}}
+\end{equation}
+The final eigenvalue corresponds to the entropy wave. The maximum and minimum eigenvalues ($\lambda^{\pm}$) are related to the fast magneto-sonic speed by,
+\begin{equation}
+    \lambda^{\pm} = v_x \pm c_{\text{fm}}
+\end{equation}
+To obtain $\boldsymbol{F}_{i+1/2}$ from equation 12, replace the superscript "L" with $i$ and the superscript "R" with $i+1$.
+
+The time step is determined by the Courant-Friedrich-Levy condition,
+\begin{equation}
+    \Delta t < \frac{\Delta x}{\text{MAX}(\alpha^{\pm})}
+\end{equation}
+
+One of the most basic test of an MHD simulation code is the  Brio-Wu shock tube problem. This test is analogous to the Sod shock tube problem of hydrodynamics. Similar to the Sod shock tube problem, this test is over the one-dimensional numerical region ($0 \leq x \leq 1$) and consists of two state on either side of a contact discontinuity at $x=0.5$. The initial conditions of the left state are: $P_L = 1.0$, $\rho_L = 1.0$, $\boldsymbol{v}_L = (0.0, 0.0, 0.0)$, $\boldsymbol{B}_L = (0.75, 1.0, 0.0)$. The initial conditions of the right state are: $P_R = 0.1$, $\rho_R = 0.125$, $\boldsymbol{v}_R = (0.0, 0.0, 0.0)$, $\boldsymbol{B}_R = (0.75, -1.0, 0.0)$. The gas is assumed to be ideal with an adiabatic index of $\gamma=2.0$. A successful test will produce two fast rarefaction waves (one moving to the left and one to the right), a slow compound wave (which consists of a slow shock and a slow rarefaction and will move to the left), an entropy wave (moving to the right), and a slow shock (moving to the right).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\vspace{6mm}
+\begin{center}
+    \subsection{One-Dimensional High-Order Method for Newtonian MHD}\label{S4}
+\end{center}
+To extend the first-order method discussed in the previous section, we will use the same method as discussed in the "How To Write A Hydrodynamics Code" note. The goal is to achieve higher order in both space and time.
+
+The time integration will be done using a high-order Runge-Kutta method, specifically the scheme developed by Shu and Osher:
+\begin{equation}
+    \boldsymbol{U}^{(1)} = \boldsymbol{U}^n + \Delta t * L(\boldsymbol{U}^n)
+\end{equation}
+\begin{equation}
+    \boldsymbol{U}^{(2)} = \frac{3}{4}\boldsymbol{U}^n + \frac{1}{4}\boldsymbol{U}^{(1)} + \frac{1}{4} \Delta t*L(\boldsymbol{U}^{(1)}) 
+\end{equation}
+\begin{equation}
+    \boldsymbol{U}^{n+1} = \frac{1}{3}\boldsymbol{U}^n + \frac{2}{3}\boldsymbol{U}^{(2)} + \frac{2}{3} \Delta t*L(\boldsymbol{U}^{(2)}) 
+\end{equation}
+where $\boldsymbol{U}^{n+1}$ is the conserved variable after advancing one time step from $\boldsymbol{U}^n$ and $L(\boldsymbol{U})$ is equation 10.
+
+To achieve higher order in space, we will need to use a simple reconstruction method, rather than using the values at the cell center, to construct the cell boundary flux. This will be done using the piecewise linear method (PLM) with a generalized minmod slope limiter. To obtain the primitive variables of the left and right states at the cell boundary $i+1/2$, we need the states at $i-1$, $i$, $i+1$, and $i+2$. This requires the introduction of two ghost cells, one placed at either end of the grid. The left-biased interface value of the left state is,
+\begin{equation}
+    c^{\text{L}}_{i+1/2} = c_i + \frac{1}{2}\text{minmod}[\frac{3}{2}(c_i-c_{i-1}), \frac{1}{2}(c_{i+1}-c_{i-1}),\frac{3}{2}(c_{i+1}-c_i)]
+\end{equation}
+The right-biased interface value of the right state is,
+\begin{equation}
+    c^{\text{R}}_{i+1/2} = c_{i+1} - \frac{1}{2}\text{minmod}[\frac{3}{2}(c_{i+1}-c_i), \frac{1}{2}(c_{i+2}-c_i),\frac{3}{2}(c_{i+2}-c_{i+1})]
+\end{equation}
+where $c$ represents pressure, density, velocity, or the magnetic field. The minmod function is given by,
+\begin{equation}
+    \text{minmod}(x,y,z) = \frac{1}{4}|\text{sgn}(x)+\text{sgn}(y)|*(\text{sgn}(x)+\text{sgn}(z))*\text{min}(|x|,|y|,|z|)
+\end{equation}
+where the sgn function returns the sign of the value.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\vspace{6mm}
+\begin{center}
+    \subsection{Two-Dimensional Newtonian MHD}\label{S5}
+\end{center}
+
+The equation used to describe two-dimensional MHD is the same as equation 5, but with an extra term added:
+\begin{equation}
+    \frac{\partial \boldsymbol{U}}{\partial t} + \frac{\partial \boldsymbol{F}}{\partial x} + \frac{\partial \boldsymbol{G}}{\partial y} = 0
+\end{equation}
+Like before, $\boldsymbol{U}$ is the conserved variable and $\boldsymbol{F}$ is the flux in the x-direction. The new term contains $\boldsymbol{G}$, which is the flux in the y-direction. The conserved variable and the fluxes can be written as, 
+\begin{equation}
+    \boldsymbol{U} = \begin{bmatrix} \rho \\ \rho v_x \\ \rho v_y \\
+    \rho v_z \\ B_x \\ B_y \\ B_z \\ E\end{bmatrix},   \hspace{3mm}
+    \boldsymbol{F}  = \begin{bmatrix} \rho v_x \\ \rho v_x^2 + P_T - B_x^2 \\ \rho v_x v_y -B_xB_y \\ \rho v_x v_z-B_xB_z \\ 0 \\ B_yv_x - B_xv_y \\ B_zv_x - B_xv_z \\ (E+P_T)v_x -B_x(\boldsymbol{v} \cdot \boldsymbol{B})\end{bmatrix},
+    \hspace{3mm}
+    \boldsymbol{G} = \begin{bmatrix}
+        \rho v_y \\ \rho v_x v_y - B_x B_y \\ \rho v_y^2 + P_T - B_y^2 \\ \rho v_y v_z - B_y B_z \\ B_x v_y - B_y v_x \\ 0 \\ B_z v_y - B_y v_z \\ (E+P_T) v_y - B_y (\boldsymbol{v} \cdot \boldsymbol{B})
+    \end{bmatrix}
+\end{equation} 
+
+Equation 25 expressed in semi-discrete form is, 
+\begin{equation}
+    \frac{d\boldsymbol{U}_{i,j}}{dt} = L(\boldsymbol{U}) = - \frac{\boldsymbol{F}_{i+1/2,j} - \boldsymbol{F}_{i-1/2,j}}{\Delta x} - \frac{\boldsymbol{G}_{i,j+1/2} - \boldsymbol{G}_{i,j-1/2}}{\Delta y}
+\end{equation}
+\end{document}
