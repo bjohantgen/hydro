@@ -33,8 +33,8 @@ pub fn sound_speed(prim: Cell8, a_index: f64) -> f64 {
 pub fn bondi_accretion_rate(m: f64, a_index: f64, p_infinity: f64, rho_infinity: f64) -> f64 {
     let l_c = f64::powf(0.5, (a_index + 1.0) / (2.0 * (a_index - 1.0))) * f64::powf((5.0 - 3.0 * a_index) / 4.0, -(5.0 - 3.0 * a_index) / (2.0 * (a_index - 1.0)));
     let c_s = (a_index * p_infinity / rho_infinity).sqrt();
-    let a = 4.0 * PI * l_c * f64::powf(m, 2.0) * rho_infinity / (f64::powf(c_s, 3.0));
-    a
+    let m_dot = 4.0 * PI * l_c * f64::powf(m, 2.0) * rho_infinity / (f64::powf(c_s, 3.0));
+    m_dot
 }
 
 //////////////////////////////////////////
