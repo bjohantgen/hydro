@@ -89,25 +89,14 @@ pub fn init_prims_1d(init_conds: &InitConds, drive: &Driver) -> Primitives {
     let mut init_bx3 = vec![0.0; ncells];
 
     for i in 0..ncells {
-        if i <=(((drive.x1_cell+1) as f64) * init_conds.discontinuity) as usize {
-            init_p[i] = init_conds.p.0;
-            init_rho[i] = init_conds.rho.0;
-            init_vx1[i] = init_conds.vx1.0;
-            init_vx2[i] = init_conds.vx2.0;
-            init_vx3[i] = init_conds.vx3.0;
-            init_bx1[i] = init_conds.bx1.0;
-            init_bx2[i] = init_conds.bx2.0;
-            init_bx3[i] = init_conds.bx3.0;
-        } else {
-            init_p[i] = init_conds.p.1;
-            init_rho[i] = init_conds.rho.1;
-            init_vx1[i] = init_conds.vx1.1;
-            init_vx2[i] = init_conds.vx2.1;
-            init_vx3[i] = init_conds.vx3.1;
-            init_bx1[i] = init_conds.bx1.1;
-            init_bx2[i] = init_conds.bx2.1;
-            init_bx3[i] = init_conds.bx3.1;
-        }
+        init_p[i] = init_conds.p.0;
+        init_rho[i] = init_conds.rho.0;
+        init_vx1[i] = init_conds.vx1.0;
+        init_vx2[i] = init_conds.vx2.0;
+        init_vx3[i] = init_conds.vx3.0;
+        init_bx1[i] = init_conds.bx1.0;
+        init_bx2[i] = init_conds.bx2.0;
+        init_bx3[i] = init_conds.bx3.0;
     }
 
     let prims = Primitives{
@@ -127,16 +116,16 @@ pub fn init_prims_1d(init_conds: &InitConds, drive: &Driver) -> Primitives {
 /// Input:
 /// Output:
 /// Description:
-pub fn prim_to_cons_1d(prim: Cell8, a_index: f64) -> Cell8 {
-    let e = math_func::total_energy_cart(prim, a_index);
-    let con = (prim.1, prim.1 * prim.2, prim.1 * prim.3, prim.1 * prim.4, prim.5, prim.6, prim.7, e);
+pub fn prim_to_cons_1d(prim: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
+    let energy = math_func::total_energy_cart(prim, a_index, i_num, dx1, m, e);
+    let con = (prim.1, prim.1 * prim.2, prim.1 * prim.3, prim.1 * prim.4, prim.5, prim.6, prim.7, energy);
     con
 }
 
 /// Input:
 /// Output:
 /// Description:
-pub fn cons_from_prim_1d(prims: &Primitives, a_index: f64) -> Conserved {
+pub fn cons_from_prim_1d(prims: &Primitives, a_index: f64, dx1: f64, m: f64, e: f64) -> Conserved {
     let size = prims.p.len() as usize;
 
     let mut cons_rho = vec![0.0; size];
@@ -150,7 +139,7 @@ pub fn cons_from_prim_1d(prims: &Primitives, a_index: f64) -> Conserved {
 
     for i in 0..size {
         let prim_fill = (prims.p[i], prims.rho[i], prims.vx1[i], prims.vx2[i], prims.vx3[i], prims.bx1[i], prims.bx2[i], prims.bx3[i]);
-        let con_result = prim_to_cons_1d(prim_fill, a_index);
+        let con_result = prim_to_cons_1d(prim_fill, a_index, i, dx1, m, e);
 
         cons_rho[i] = con_result.0;
         cons_mx1[i] = con_result.1;
@@ -179,11 +168,13 @@ pub fn cons_from_prim_1d(prims: &Primitives, a_index: f64) -> Conserved {
 /// Input:
 /// Output:
 /// Description:
-pub fn cons_to_prim_1d(con: Cell8, a_index: f64) -> Cell8 {
+pub fn cons_to_prim_1d(con: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
     let vx1 = con.1 / con.0;
     let vx2 = con.2 / con.0;
     let vx3 = con.3 / con.0;
-    let p = (a_index - 1.0) * (con.7 - 0.5 * (con.0 * (vx1 * vx1 + vx2 * vx2 + vx3 * vx3) + (con.4 * con.4 + con.5 * con.5 + con.6 * con.6)));
+    let position = math_func::radial_distance(i_num, dx1);
+    let grav = math_func::gravity(m, position, e, dx1);
+    let p = (a_index - 1.0) * (con.7 - grav - 0.5 * (con.0 * (vx1 * vx1 + vx2 * vx2 + vx3 * vx3) + (con.4 * con.4 + con.5 * con.5 + con.6 * con.6)));
     let prim = (p, con.0, vx1, vx2, vx3, con.4, con.5, con.6);
     prim
 }
@@ -191,7 +182,7 @@ pub fn cons_to_prim_1d(con: Cell8, a_index: f64) -> Cell8 {
 /// Input:
 /// Output:
 /// Description:
-pub fn prim_from_cons_1d(cons: &Conserved, a_index: f64) -> Primitives {
+pub fn prim_from_cons_1d(cons: &Conserved, a_index: f64, dx1: f64, m: f64, e: f64) -> Primitives {
     let size = cons.rho.len() as usize;
 
     let mut prims_p = vec![0.0; size];
@@ -205,7 +196,7 @@ pub fn prim_from_cons_1d(cons: &Conserved, a_index: f64) -> Primitives {
 
     for i in 0..size {
         let con_fill = (cons.rho[i], cons.mx1[i], cons.mx2[i], cons.mx3[i], cons.bx1[i], cons.bx2[i], cons.bx3[i], cons.e[i]);
-        let prim_result = cons_to_prim_1d(con_fill, a_index);
+        let prim_result = cons_to_prim_1d(con_fill, a_index, i, dx1, m, e);
 
         prims_p[i] = prim_result.0;
         prims_rho[i] = prim_result.1;
@@ -234,7 +225,7 @@ pub fn prim_from_cons_1d(cons: &Conserved, a_index: f64) -> Primitives {
 /// Input:
 /// Output:
 /// Description:
-pub fn hll_1d(prim_1: Cell8, prim_2: Cell8, prim_3: Cell8, prim_4: Cell8, a_index: f64) -> Cell8 {
+pub fn hll_1d(prim_1: Cell8, prim_2: Cell8, prim_3: Cell8, prim_4: Cell8, a_index: f64, i_num1: usize, i_num2: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
     let p_l = math_func::plm_reconstruction(prim_2.0, prim_3.0, prim_4.0, prim_1.0, true);
     let rho_l = math_func::plm_reconstruction(prim_2.1, prim_3.1, prim_4.1, prim_1.1, true);
     let vx1_l = math_func::plm_reconstruction(prim_2.2, prim_3.2, prim_4.2, prim_1.2, true);
@@ -259,14 +250,14 @@ pub fn hll_1d(prim_1: Cell8, prim_2: Cell8, prim_3: Cell8, prim_4: Cell8, a_inde
     let cf_l = math_func::sound_speed(prim_l, a_index);
     let plus_l = vx1_l + cf_l;
     let minus_l = vx1_l - cf_l;
-    let u_l = prim_to_cons_1d(prim_l, a_index);
-    let f_l = math_func::flux_x(prim_l, a_index);
+    let u_l = prim_to_cons_1d(prim_l, a_index, i_num1, dx1, m, e);
+    let f_l = math_func::flux_x(prim_l, a_index, i_num1, dx1, m, e);
 
     let cf_r = math_func::sound_speed(prim_r, a_index);
     let plus_r = vx1_r + cf_r;
     let minus_r = vx1_r - cf_r;
-    let u_r = prim_to_cons_1d(prim_r, a_index);
-    let f_r = math_func::flux_x(prim_r, a_index);
+    let u_r = prim_to_cons_1d(prim_r, a_index, i_num2, dx1, m, e);
+    let f_r = math_func::flux_x(prim_r, a_index, i_num2, dx1, m, e);
 
     let a_plus = math_func::tuple_max((0.0, plus_l, plus_r));
     let a_minus = math_func::tuple_max((0.0, -minus_l, -minus_r));
@@ -286,7 +277,7 @@ pub fn hll_1d(prim_1: Cell8, prim_2: Cell8, prim_3: Cell8, prim_4: Cell8, a_inde
 /// Input:
 /// Output:
 /// Description:
-pub fn godonov_1d(prims: &Primitives, a_index: f64) ->  Vec<Cell8> {
+pub fn godonov_1d(prims: &Primitives, a_index: f64, dx1: f64, m: f64, e: f64) ->  Vec<Cell8> {
     let size = prims.p.len() as usize;
     let mut go = vec![(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0); size-1];
     for i in 0..(size-1) {
@@ -295,19 +286,21 @@ pub fn godonov_1d(prims: &Primitives, a_index: f64) ->  Vec<Cell8> {
             let prim_1 = (prims.p[1], prims.rho[1], prims.vx1[1], prims.vx2[1], prims.vx3[1], prims.bx1[1], prims.bx2[1], prims.bx3[1]);
             let prim_2 = (prims.p[2], prims.rho[2], prims.vx1[2], prims.vx2[2], prims.vx3[2], prims.bx1[2], prims.bx2[2], prims.bx3[2]);
             let prim_3 = (prims.p[3], prims.rho[3], prims.vx1[3], prims.vx2[3], prims.vx3[3], prims.bx1[3], prims.bx2[3], prims.bx3[3]);
-            go[i] = hll_1d(prim_0, prim_1, prim_2, prim_3, a_index);
+            go[i] = hll_1d(prim_0, prim_1, prim_2, prim_3, a_index, 1, 2, dx1, m, e);
+
         } else if i < (size - 2) {
             let prim_fst = (prims.p[i-1], prims.rho[i-1], prims.vx1[i-1], prims.vx2[i-1], prims.vx3[i-1], prims.bx1[i-1], prims.bx2[i-1], prims.bx3[i-1]);
             let prim_s = (prims.p[i], prims.rho[i], prims.vx1[i], prims.vx2[i], prims.vx3[i], prims.bx1[i], prims.bx2[i], prims.bx3[i]);
             let prim_t = (prims.p[i+1], prims.rho[i+1], prims.vx1[i+1], prims.vx2[i+1], prims.vx3[i+1], prims.bx1[i+1], prims.bx2[i+1], prims.bx3[i+1]);
             let prim_frt = (prims.p[i+2], prims.rho[i+2], prims.vx1[i+2], prims.vx2[i+2], prims.vx3[i+2], prims.bx1[i+2], prims.bx2[i+2], prims.bx3[i+2]);
-            go[i] = hll_1d(prim_fst, prim_s, prim_t, prim_frt, a_index);
+            go[i] = hll_1d(prim_fst, prim_s, prim_t, prim_frt, a_index, i, i+1, dx1, m, e);
+
         } else {
             let prim_0 = (prims.p[size-4], prims.rho[size-4], prims.vx1[size-4], prims.vx2[size-4], prims.vx3[size-4], prims.bx1[size-4], prims.bx2[size-4], prims.bx3[size-4]);
             let prim_1 = (prims.p[size-3], prims.rho[size-3], prims.vx1[size-3], prims.vx2[size-3], prims.vx3[size-3], prims.bx1[size-3], prims.bx2[size-3], prims.bx3[size-3]);
             let prim_2 = (prims.p[size-2], prims.rho[size-2], prims.vx1[size-2], prims.vx2[size-2], prims.vx3[size-2], prims.bx1[size-2], prims.bx2[size-2], prims.bx3[size-2]);
             let prim_3 = (prims.p[size-1], prims.rho[size-1], prims.vx1[size-1], prims.vx2[size-1], prims.vx3[size-1], prims.bx1[size-1], prims.bx2[size-1], prims.bx3[size-1]);
-            go[i] = hll_1d(prim_0, prim_1, prim_2, prim_3, a_index);
+            go[i] = hll_1d(prim_0, prim_1, prim_2, prim_3, a_index, size-3, size-2, dx1, m, e);
         }
     }
     go
@@ -316,7 +309,7 @@ pub fn godonov_1d(prims: &Primitives, a_index: f64) ->  Vec<Cell8> {
 /// Input:
 /// Output:
 /// Description:
-pub fn l_function_1d(prims: &Primitives, a_index: f64, dx1: f64) -> Conserved {
+pub fn l_function_1d(prims: &Primitives, a_index: f64, dx1: f64, m: f64, e: f64) -> Conserved {
     let size = prims.p.len() as usize;
 
     let mut l_rho = vec![0.0; size];
@@ -328,7 +321,7 @@ pub fn l_function_1d(prims: &Primitives, a_index: f64, dx1: f64) -> Conserved {
     let mut l_bx3 = vec![0.0; size];
     let mut l_e = vec![0.0; size];
 
-    let f_vec = godonov_1d(prims, a_index);
+    let f_vec = godonov_1d(prims, a_index, dx1, m, e);
 
     l_rho[0] = 0.0;
     l_mx1[0] = 0.0;
@@ -340,14 +333,17 @@ pub fn l_function_1d(prims: &Primitives, a_index: f64, dx1: f64) -> Conserved {
     l_e[0] = 0.0;
 
     for i in 1..(size-1) {
-        l_rho[i] = - (f_vec[i].0 - f_vec[i-1].0) / dx1;
-        l_mx1[i] = - (f_vec[i].1 - f_vec[i-1].1) / dx1;
+        let p_fill = (prims.p[i], prims.rho[i], prims.vx1[i], prims.vx2[i], prims.vx3[i], prims.bx1[i], prims.bx2[i], prims.bx3[i]);
+        let s = math_func::source(p_fill, a_index, i, dx1, m, e);
+
+        l_rho[i] = s.0 - (f_vec[i].0 - f_vec[i-1].0) / dx1;
+        l_mx1[i] = s.1 - (f_vec[i].1 - f_vec[i-1].1) / dx1;
         l_mx2[i] = - (f_vec[i].2 - f_vec[i-1].2) / dx1;
         l_mx3[i] = - (f_vec[i].3 - f_vec[i-1].3) / dx1;
         l_bx1[i] = - (f_vec[i].4 - f_vec[i-1].4) / dx1;
         l_bx2[i] = - (f_vec[i].5 - f_vec[i-1].5) / dx1;
         l_bx3[i] = - (f_vec[i].6 - f_vec[i-1].6) / dx1;
-        l_e[i] = - (f_vec[i].7 - f_vec[i-1].7) / dx1;
+        l_e[i] = s.2 - (f_vec[i].7 - f_vec[i-1].7) / dx1;
     }
 
     l_rho[size-1] = 0.0;
@@ -376,9 +372,9 @@ pub fn l_function_1d(prims: &Primitives, a_index: f64, dx1: f64) -> Conserved {
 /// Input:
 /// Output:
 /// Description:
-pub fn rk_step_1d(prims: &Primitives, cons: &Conserved, a_index: f64, dx1: f64, dt: f64) -> Conserved {
+pub fn rk_step_1d(prims: &Primitives, cons: &Conserved, a_index: f64, dx1: f64, dt: f64, m: f64, e: f64) -> Conserved {
     let size = prims.p.len() as usize;
-    let l0 = l_function_1d(prims, a_index, dx1);
+    let l0 = l_function_1d(prims, a_index, dx1, m, e);
     
     let mut con0_rho = vec![0.0; size];
     let mut con0_mx1 = vec![0.0; size];
@@ -411,8 +407,8 @@ pub fn rk_step_1d(prims: &Primitives, cons: &Conserved, a_index: f64, dx1: f64, 
         e: con0_e,
     };
 
-    let prims_1 = prim_from_cons_1d(&cons0, a_index);
-    let l1 = l_function_1d(&prims_1, a_index, dx1);
+    let prims_1 = prim_from_cons_1d(&cons0, a_index, dx1, m, e);
+    let l1 = l_function_1d(&prims_1, a_index, dx1, m, e);
 
     let mut con1_rho = vec![0.0; size];
     let mut con1_mx1 = vec![0.0; size];
@@ -447,8 +443,8 @@ pub fn rk_step_1d(prims: &Primitives, cons: &Conserved, a_index: f64, dx1: f64, 
         e: con1_e,
     };
 
-    let prims_2 = prim_from_cons_1d(&cons1, a_index);
-    let l2 = l_function_1d(&prims_2, a_index, dx1);
+    let prims_2 = prim_from_cons_1d(&cons1, a_index, dx1, m, e);
+    let l2 = l_function_1d(&prims_2, a_index, dx1, m, e);
 
     let mut con2_rho = vec![0.0; size];
     let mut con2_mx1 = vec![0.0; size];

@@ -62,17 +62,20 @@ pub fn total_pressure_cart(prim: Cell8) -> f64 {
 /// Input:
 /// Output:
 /// Description:
-pub fn total_energy_cart(prim: Cell8, a_index: f64, i_num:usize, dx1: f64, m: f64, e: f64) -> f64 {
+pub fn total_energy_cart(prim: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64) -> f64 {
     let e = 0.5 * prim.1 * (prim.2 * prim.2 + prim.3 * prim.3 + prim.4 * prim.4) + prim.0 / (a_index - 1.0) + 0.5 * (prim.5 * prim.5 + prim.6 * prim.6 + prim.7 * prim.7);
-    e
+    let position = radial_distance(i_num, dx1);
+    let grav = gravity(m, position, e, dx1);
+    let tot_energy = e + grav;
+    tot_energy
 }
 
 /// Input:
 /// Output:
 /// Description:
-pub fn flux_x(prim: Cell8, a_index: f64, i_num:usize, dx1: f64, m: f64, e: f64) -> Cell8 {
+pub fn flux_x(prim: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
     let p = total_pressure_cart(prim);
-    let e = total_energy_cart(prim, a_index, i_num, dx1, m, e);
+    let energy = total_energy_cart(prim, a_index, i_num, dx1, m, e);
     let f0 = prim.1 * prim.2;
     let f1 = prim.1 * prim.2 * prim.2 + p - prim.5 * prim.5;
     let f2 = prim.1 * prim.2 * prim.3 - prim.5 * prim.6;
@@ -80,7 +83,7 @@ pub fn flux_x(prim: Cell8, a_index: f64, i_num:usize, dx1: f64, m: f64, e: f64) 
     let f4 = 0.0;
     let f5 = prim.6 * prim.2 - prim.5 * prim.3;
     let f6 = prim.7 * prim.2 - prim.5 * prim.4;  
-    let f7 = (e + p) * prim.2 - prim.5 * (prim.2 * prim.5 + prim.3 * prim.6 + prim.4 * prim.7);
+    let f7 = (energy + p) * prim.2 - prim.5 * (prim.2 * prim.5 + prim.3 * prim.6 + prim.4 * prim.7);
     let f = (f0, f1, f2, f3, f4, f5, f6, f7);
     f
 }
@@ -88,9 +91,9 @@ pub fn flux_x(prim: Cell8, a_index: f64, i_num:usize, dx1: f64, m: f64, e: f64) 
 /// Input:
 /// Output:
 /// Description:
-pub fn flux_y(prim:Cell8, a_index: f64, i_num:usize, dx1: f64, m: f64, e: f64) -> Cell8 {
+pub fn flux_y(prim:Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
     let p = total_pressure_cart(prim);
-    let e = total_energy_cart(prim, a_index, i_num, dx1, m, e);
+    let energy = total_energy_cart(prim, a_index, i_num, dx1, m, e);
     let f0 = prim.1 * prim.3;
     let f1 = prim.1 * prim.2 * prim.3 - prim.5 * prim.6;
     let f2 = prim.1 * prim.3 * prim.3 + p - prim.6 * prim.6;
@@ -98,7 +101,7 @@ pub fn flux_y(prim:Cell8, a_index: f64, i_num:usize, dx1: f64, m: f64, e: f64) -
     let f4 = prim.5 * prim.3 - prim.6 * prim.2;
     let f5 = 0.0;
     let f6 = prim.7 * prim.3 - prim.6 * prim.4;
-    let f7 = (e + p) * prim.3 - prim.6 * (prim.2 * prim.5 + prim.3 * prim.6 + prim.4 * prim.7);
+    let f7 = (energy + p) * prim.3 - prim.6 * (prim.2 * prim.5 + prim.3 * prim.6 + prim.4 * prim.7);
     let f_y = (f0, f1, f2, f3, f4, f5, f6, f7);
     f_y
 }
@@ -109,6 +112,16 @@ pub fn flux_y(prim:Cell8, a_index: f64, i_num:usize, dx1: f64, m: f64, e: f64) -
 pub fn radial_distance(i_num: usize, dr: f64) -> f64 {
     let r = (i_num as f64) * dr;
     r 
+}
+
+pub fn source(prim:Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
+    let r = radial_distance(i_num, dx1);
+    let energy = total_energy_cart(prim, a_index, i_num, dx1, m, e);
+    let s0 = (-2.0 / r) * prim.1 * prim.2;
+    let s1 = (-2.0 / r) * prim.1 * f64::powf(prim.2, 2.0);
+    let s2 = (-2.0 / r) * prim.2 * (energy + prim.0);
+    let s = (s0, s1, s2, 0.0, 0.0, 0.0, 0.0, 0.0);
+    s
 }
 
 //////////////////////////////////

@@ -24,7 +24,7 @@ fn main() {
                         adiabatic_index: 1.4,
                         discontinuity: 0.0,
                         bh_mass: 1.0,
-                        softness: 5.0,
+                        softness: 3.0,
                         p: (1.0, 0.0),
                         rho: (1.0, 0.0),
                         vx1: (0.6*(1.4_f64).sqrt(), 0.0), 
@@ -39,23 +39,12 @@ fn main() {
                 cfl: 0.3,
                 tfinal: 1.001,
                 checkpoint: 0.0125,
-                x1_cell: 8,
+                x1_cell: 256,
                 x1_range: (0.0, 1.0),
                 x2_cell: 0,
                 x2_range: (0.0, 0.0),
                 x3_cell: 0,
                 x3_range: (0.0, 0.0),
-    };
-
-    let source = sim_func::Conserved{
-        rho: vec![0.0; drive.x1_cell],
-        mx1: vec![0.0; drive.x1_cell],
-        mx2: vec![0.0; drive.x1_cell],
-        mx3: vec![0.0; drive.x1_cell],
-        bx1: vec![0.0; drive.x1_cell],
-        bx2: vec![0.0; drive.x1_cell],
-        bx3: vec![0.0; drive.x1_cell],
-        e: vec![0.0; drive.x1_cell],
     };
 
     // Simulation Prerequisites
@@ -71,21 +60,19 @@ fn main() {
     let mut cons: sim_func::Conserved;
     let mut dt: f64;
 
-    let d = math_func::radial_distance(7, dr);
-
-    println!("{:?}", d);
-    /*
+    println!("{:?}", prims.rho);
+    
     let _ = sim_func::write_checkpoint(&prims, &drive, t, check_count);
     check_count += 1;
 
     // Running the Simulation 
     while t < drive.tfinal {
-        cons = sim_func::cons_from_prim_1d(&prims, init_setup.adiabatic_index);
+        cons = sim_func::cons_from_prim_1d(&prims, init_setup.adiabatic_index, dr, init_setup.bh_mass, init_setup.softness);
 
         dt = sim_func::determine_time_step_1d(&prims, &drive, init_setup.adiabatic_index, dr);
 
-        cons = sim_func::rk_step_1d(&prims, &cons, init_setup.adiabatic_index, dr, dt);
-        prims = sim_func::prim_from_cons_1d(&cons, init_setup.adiabatic_index);
+        cons = sim_func::rk_step_1d(&prims, &cons, init_setup.adiabatic_index, dr, dt, init_setup.bh_mass, init_setup.softness);
+        prims = sim_func::prim_from_cons_1d(&cons, init_setup.adiabatic_index, dr, init_setup.bh_mass, init_setup.softness);
 
         if t >= t_checkpoint {
             let _ = sim_func::write_checkpoint(&prims, &drive, t, check_count);
@@ -105,5 +92,5 @@ fn main() {
     println!("The number of timesteps: {:?}", time_step_count);
     println!("The runtime in seconds: {:?}", runtime);
     println!("The performance in zones per second: {:.2?}", performance);
-    */
+    
 }
