@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 #
 # This python file is used to animate the checkpoint file data from
-# the RUST simulation of MHD.
+# the RUST simulation of hydro.
 #
 # Author: Brayden JoHantgen
-# Last Update: 7/12/2026
+# Last Update: 9/17/2026
 
 #############
 # Importing
@@ -33,10 +33,10 @@ print("Please take the time to answer the following questions.")
 print("What parameter would you like to plot? (density, pressure, vx, vy, vz, Bx, By, Bz)")
 input_param = input()
 print("Would you like an animation?")
-print("Please answer with yes or no.")
+print("Please answer with y or n.")
 input_anim = input()
 
-if input_anim == "no":
+if input_anim == "n":
     animation = False
     print("There are",filenum-1,"frames. Which frame number would you like to plot?")
     input_frame = input()
@@ -44,9 +44,9 @@ else:
     animation = True
 
 
-print("Would you like to plot any of the following?")
-print("Magnetic Pressure (y/n)")
-input_mag_press = input()
+#print("Would you like to plot any of the following?")
+#print("Magnetic Pressure (y/n)")
+#input_mag_press = input()
 #print("Kinetic Energy (x direction): yes or no")
 #input_kex = input()
 #print("Kinetic Energy (y direction): yes or no")
@@ -57,9 +57,9 @@ input_mag_press = input()
 #input_mach = input()
 #print("Magnetic Energy: yes or no")
 #input_mag = input()
-if input_mag_press == "y":
-    print("There are",filenum-1,"frames. Which frame number would you like to plot?")
-    input_extra_frame = input()
+#if input_mag_press == "y":
+#    print("There are",filenum-1,"frames. Which frame number would you like to plot?")
+#    input_extra_frame = input()
 
 ############
 # Plotting

@@ -2,7 +2,7 @@
 // to supplement the "hydro" code.
 //
 // Author: Brayden JoHantgen
-// Last Update: 9/16/2026
+// Last Update: 9/17/2026
 
 //////////////
 // Importing 
@@ -18,6 +18,8 @@ pub fn sod_shock() -> sim_func::InitConds {
     let sod = sim_func::InitConds{
         adiabatic_index: 1.4,
         discontinuity: 0.5,
+        bh_mass: 0.0,
+        softness: 0.0,
         p: (1.0, 0.125),
         rho: (1.0, 0.1),
         vx1: (0.0, 0.0), 
@@ -35,6 +37,8 @@ pub fn hard_shock() -> sim_func::InitConds {
     let hard = sim_func::InitConds{
         adiabatic_index: 1.4,
         discontinuity: 0.5,
+        bh_mass: 0.0,
+        softness: 0.0,
         p: (100.0, 1.0),
         rho: (10.0, 1.0),
         vx1: (0.0, 0.0), 

@@ -1,7 +1,7 @@
 // This file is full of functions to supplement the "hydro" code.
 //
 // Author: Brayden JoHantgen
-// Last Update: 9/13/2026
+// Last Update: 9/17/2026
 
 ////////////
 // Imports
@@ -37,6 +37,16 @@ pub fn bondi_accretion_rate(m: f64, a_index: f64, p_infinity: f64, rho_infinity:
     m_dot
 }
 
+/// Input:
+/// Output:
+/// Description:
+pub fn gravity(m:f64, r: f64, e: f64, dx1: f64) -> f64 {
+    let numerator = -1.0 * m;
+    let denominator = f64::powf(r, 2.0) + (f64::powf(e, 2.0)) * (f64::powf(dx1, 2.0)) * f64::exp(-f64::powf(r, 2.0) / (f64::powf(e, 2.0) * f64::powf(dx1, 2.0)));
+    let p = numerator / (denominator.sqrt());
+    p
+}
+
 //////////////////////////////////////////
 // Defining Cartesean Physical Functions
 //////////////////////////////////////////
@@ -52,7 +62,7 @@ pub fn total_pressure_cart(prim: Cell8) -> f64 {
 /// Input:
 /// Output:
 /// Description:
-pub fn total_energy_cart(prim: Cell8, a_index: f64) -> f64 {
+pub fn total_energy_cart(prim: Cell8, a_index: f64, i_num:usize, dx1: f64, m: f64, e: f64) -> f64 {
     let e = 0.5 * prim.1 * (prim.2 * prim.2 + prim.3 * prim.3 + prim.4 * prim.4) + prim.0 / (a_index - 1.0) + 0.5 * (prim.5 * prim.5 + prim.6 * prim.6 + prim.7 * prim.7);
     e
 }
@@ -60,9 +70,9 @@ pub fn total_energy_cart(prim: Cell8, a_index: f64) -> f64 {
 /// Input:
 /// Output:
 /// Description:
-pub fn flux_x(prim: Cell8, a_index: f64) -> Cell8 {
+pub fn flux_x(prim: Cell8, a_index: f64, i_num:usize, dx1: f64, m: f64, e: f64) -> Cell8 {
     let p = total_pressure_cart(prim);
-    let e = total_energy_cart(prim, a_index);
+    let e = total_energy_cart(prim, a_index, i_num, dx1, m, e);
     let f0 = prim.1 * prim.2;
     let f1 = prim.1 * prim.2 * prim.2 + p - prim.5 * prim.5;
     let f2 = prim.1 * prim.2 * prim.3 - prim.5 * prim.6;
@@ -78,9 +88,9 @@ pub fn flux_x(prim: Cell8, a_index: f64) -> Cell8 {
 /// Input:
 /// Output:
 /// Description:
-pub fn flux_y(prim:Cell8, a_index: f64) -> Cell8 {
+pub fn flux_y(prim:Cell8, a_index: f64, i_num:usize, dx1: f64, m: f64, e: f64) -> Cell8 {
     let p = total_pressure_cart(prim);
-    let e = total_energy_cart(prim, a_index);
+    let e = total_energy_cart(prim, a_index, i_num, dx1, m, e);
     let f0 = prim.1 * prim.3;
     let f1 = prim.1 * prim.2 * prim.3 - prim.5 * prim.6;
     let f2 = prim.1 * prim.3 * prim.3 + p - prim.6 * prim.6;
@@ -96,7 +106,10 @@ pub fn flux_y(prim:Cell8, a_index: f64) -> Cell8 {
 //////////////////////////////////////////
 // Defining Spherical Physical Functions
 //////////////////////////////////////////
-
+pub fn radial_distance(i_num: usize, dr: f64) -> f64 {
+    let r = (i_num as f64) * dr;
+    r 
+}
 
 //////////////////////////////////
 // Defining Simulation Functions
@@ -176,4 +189,29 @@ pub fn plm_reconstruction(ci: f64, cip1: f64, cip2: f64, cim1: f64, left: bool) 
         a = cip1 - 0.5 * minmod(num_1, num_2, num_3);
     }
     a
+}
+
+/// Input:
+/// Output:
+/// Description:
+pub fn compute_time_step_1d(prim_l: Cell8, prim_r: Cell8, a_index: f64, dx1: f64) -> f64 {
+    let cf_l = sound_speed(prim_l, a_index);
+    let plus_l = cf_l + prim_l.2;
+    let minus_l = prim_l.2 - cf_l;
+
+    let cf_r = sound_speed(prim_r, a_index); 
+    let plus_r = cf_r + prim_r.2; 
+    let minus_r = prim_r.2 - cf_r;
+
+    let a_plus = tuple_max((0.0, plus_l, plus_r));
+    let a_minus = tuple_max((0.0, -minus_l, -minus_r));
+
+    let mut dt: f64 = 0.0;
+    
+    if a_minus > a_plus {
+        dt += dx1 / a_minus;
+    } else {
+        dt += dx1 / a_plus;
+    }    
+    dt
 }

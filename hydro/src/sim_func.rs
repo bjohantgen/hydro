@@ -17,6 +17,8 @@ use crate::math_func;
 pub struct InitConds {
     pub adiabatic_index: f64,
     pub discontinuity: f64,
+    pub bh_mass: f64,
+    pub softness: f64,
     pub p: (f64, f64),
     pub rho: (f64, f64),
     pub vx1: (f64, f64),
@@ -284,7 +286,7 @@ pub fn hll_1d(prim_1: Cell8, prim_2: Cell8, prim_3: Cell8, prim_4: Cell8, a_inde
 /// Input:
 /// Output:
 /// Description:
-pub fn godonov_flux_1d(prims: &Primitives, a_index: f64) ->  Vec<Cell8> {
+pub fn godonov_1d(prims: &Primitives, a_index: f64) ->  Vec<Cell8> {
     let size = prims.p.len() as usize;
     let mut go = vec![(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0); size-1];
     for i in 0..(size-1) {
@@ -293,19 +295,19 @@ pub fn godonov_flux_1d(prims: &Primitives, a_index: f64) ->  Vec<Cell8> {
             let prim_1 = (prims.p[1], prims.rho[1], prims.vx1[1], prims.vx2[1], prims.vx3[1], prims.bx1[1], prims.bx2[1], prims.bx3[1]);
             let prim_2 = (prims.p[2], prims.rho[2], prims.vx1[2], prims.vx2[2], prims.vx3[2], prims.bx1[2], prims.bx2[2], prims.bx3[2]);
             let prim_3 = (prims.p[3], prims.rho[3], prims.vx1[3], prims.vx2[3], prims.vx3[3], prims.bx1[3], prims.bx2[3], prims.bx3[3]);
-            go[i] = hll_flux_1d(prim_0, prim_1, prim_2, prim_3, a_index);
+            go[i] = hll_1d(prim_0, prim_1, prim_2, prim_3, a_index);
         } else if i < (size - 2) {
             let prim_fst = (prims.p[i-1], prims.rho[i-1], prims.vx1[i-1], prims.vx2[i-1], prims.vx3[i-1], prims.bx1[i-1], prims.bx2[i-1], prims.bx3[i-1]);
             let prim_s = (prims.p[i], prims.rho[i], prims.vx1[i], prims.vx2[i], prims.vx3[i], prims.bx1[i], prims.bx2[i], prims.bx3[i]);
             let prim_t = (prims.p[i+1], prims.rho[i+1], prims.vx1[i+1], prims.vx2[i+1], prims.vx3[i+1], prims.bx1[i+1], prims.bx2[i+1], prims.bx3[i+1]);
             let prim_frt = (prims.p[i+2], prims.rho[i+2], prims.vx1[i+2], prims.vx2[i+2], prims.vx3[i+2], prims.bx1[i+2], prims.bx2[i+2], prims.bx3[i+2]);
-            go[i] = hll_flux_1d(prim_fst, prim_s, prim_t, prim_frt, a_index);
+            go[i] = hll_1d(prim_fst, prim_s, prim_t, prim_frt, a_index);
         } else {
             let prim_0 = (prims.p[size-4], prims.rho[size-4], prims.vx1[size-4], prims.vx2[size-4], prims.vx3[size-4], prims.bx1[size-4], prims.bx2[size-4], prims.bx3[size-4]);
             let prim_1 = (prims.p[size-3], prims.rho[size-3], prims.vx1[size-3], prims.vx2[size-3], prims.vx3[size-3], prims.bx1[size-3], prims.bx2[size-3], prims.bx3[size-3]);
             let prim_2 = (prims.p[size-2], prims.rho[size-2], prims.vx1[size-2], prims.vx2[size-2], prims.vx3[size-2], prims.bx1[size-2], prims.bx2[size-2], prims.bx3[size-2]);
             let prim_3 = (prims.p[size-1], prims.rho[size-1], prims.vx1[size-1], prims.vx2[size-1], prims.vx3[size-1], prims.bx1[size-1], prims.bx2[size-1], prims.bx3[size-1]);
-            go[i] = hll_flux_1d(prim_0, prim_1, prim_2, prim_3, a_index);
+            go[i] = hll_1d(prim_0, prim_1, prim_2, prim_3, a_index);
         }
     }
     go
@@ -485,6 +487,23 @@ pub fn rk_step_1d(prims: &Primitives, cons: &Conserved, a_index: f64, dx1: f64, 
 
     cons2
 } 
+
+/// Input:
+/// Output:
+/// Description:
+pub fn determine_time_step_1d(prims: &Primitives, drive: &Driver, a_index: f64, dx1: f64) -> f64 {
+    let mut dt = f64::INFINITY;
+
+        for i in 0..(drive.x1_cell - 1) {
+            let prim_fill_1 = (prims.p[i], prims.rho[i], prims.vx1[i], prims.vx2[i], prims.vx3[i], prims.bx1[i], prims.bx2[i], prims.bx3[i]);
+            let prim_fill_2 = (prims.p[i+1], prims.rho[i+1], prims.vx1[i+1], prims.vx2[i+1], prims.vx3[i+1], prims.bx1[i+1], prims.bx2[i+1], prims.bx3[i+1]);
+
+            let dt_check = math_func::compute_time_step_1d(prim_fill_1, prim_fill_2, a_index, dx1);
+            dt = dt.min(dt_check);
+        }
+    dt = drive.cfl * dt;
+    dt
+}
 
 //////////////////////////////
 // Two Dimensional Functions
