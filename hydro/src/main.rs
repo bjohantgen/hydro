@@ -1,7 +1,7 @@
 // This is the main file of the hydro simulation.
 //
 // Author: Brayden JoHantgen
-// Last Update: 9/17/2026
+// Last Update: 9/22/2026
 
 ////////////
 // Imports
@@ -21,13 +21,13 @@ fn main() {
 
     // Initial Conditions
     let init_setup = sim_func::InitConds{
-                        adiabatic_index: 1.4,
+                        adiabatic_index: 5.0 / 3.0,
                         discontinuity: 0.0,
                         bh_mass: 1.0,
-                        softness: 3.0,
+                        softness: 5.0,
                         p: (1.0, 0.0),
                         rho: (1.0, 0.0),
-                        vx1: (0.6*(1.4_f64).sqrt(), 0.0), 
+                        vx1: (-0.6*(5.0/3.0_f64).sqrt(), 0.0), 
                         vx2: (0.0, 0.0),
                         vx3: (0.0, 0.0),
                         bx1: (0.0, 0.0),
@@ -37,10 +37,10 @@ fn main() {
 
     let drive = sim_func::Driver{
                 cfl: 0.3,
-                tfinal: 1.001,
+                tfinal: 5.001,
                 checkpoint: 0.0125,
                 x1_cell: 256,
-                x1_range: (0.0, 1.0),
+                x1_range: (0.1, 1.0),
                 x2_cell: 0,
                 x2_range: (0.0, 0.0),
                 x3_cell: 0,
@@ -57,30 +57,33 @@ fn main() {
 
     let dr = (drive.x1_range.1 - drive.x1_range.0) / (drive.x1_cell as f64);
     let mut prims = sim_func::init_prims_1d(&init_setup, &drive);
+    sim_func::apply_bcs_1d(&mut prims, &init_setup, &drive);
     let mut cons: sim_func::Conserved;
     let mut dt: f64;
 
-    println!("{:?}", prims.rho);
+    //println!("{:?}", prims.rho);
     
-    let _ = sim_func::write_checkpoint(&prims, &drive, t, check_count);
+    let _ = sim_func::write_checkpoint(&prims, &drive, &init_setup, t, check_count);
     check_count += 1;
 
     // Running the Simulation 
     while t < drive.tfinal {
         cons = sim_func::cons_from_prim_1d(&prims, init_setup.adiabatic_index, dr, init_setup.bh_mass, init_setup.softness);
 
-        dt = sim_func::determine_time_step_1d(&prims, &drive, init_setup.adiabatic_index, dr);
+        dt = sim_func::determine_time_step_1d(&prims, &drive, init_setup.adiabatic_index, dr, init_setup.bh_mass, init_setup.softness);
 
-        cons = sim_func::rk_step_1d(&prims, &cons, init_setup.adiabatic_index, dr, dt, init_setup.bh_mass, init_setup.softness);
+        cons = sim_func::rk_step_1d(&prims, &cons, &init_setup, &drive, init_setup.adiabatic_index, dr, dt, init_setup.bh_mass, init_setup.softness);
         prims = sim_func::prim_from_cons_1d(&cons, init_setup.adiabatic_index, dr, init_setup.bh_mass, init_setup.softness);
+        sim_func::apply_bcs_1d(&mut prims, &init_setup, &drive);
+
+        t += dt;
+        time_step_count += 1.0;
 
         if t >= t_checkpoint {
-            let _ = sim_func::write_checkpoint(&prims, &drive, t, check_count);
+            let _ = sim_func::write_checkpoint(&prims, &drive, &init_setup, t, check_count);
             t_checkpoint += drive.checkpoint;
             check_count += 1;
         }
-        t += dt;
-        time_step_count += 1.0;
         
         println!("step={} t={} dt={}", time_step_count, t, dt);
     }

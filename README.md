@@ -1,5 +1,5 @@
 # hydro v0.3
-#### Last Update 9/9/2026
+#### Last Update 9/16/2026
 This repository holds the hydrodynamics code that I have been developing as a graduate student at Clemson University (Fall 2025-Present). This code currently has the following implemented:
 - 1D Hydrocode - Cartesian, Spherical (In progress!)
 - 1D MHD - Cartesian
@@ -26,6 +26,8 @@ This repository holds the hydrodynamics code that I have been developing as a gr
     - Driver
     - Primitives
     - Conserved
+
+#### test_conds.rs
 
 #### math_functions.py
 #### plotting_functions.py

@@ -36,6 +36,10 @@ print("Would you like an animation?")
 print("Please answer with y or n.")
 input_anim = input()
 
+print("Would you like to plot M_dot?")
+print("Please answer with y or n.")
+input_mdot = input()
+
 if input_anim == "n":
     animation = False
     print("There are",filenum-1,"frames. Which frame number would you like to plot?")
@@ -200,7 +204,7 @@ else:
             ax.set_ylabel(r'$P$', fontsize=15)
 
         else:
-            ax.set_ylim(0.0, 1.05)
+            ax.set_ylim(0.0, 5.05)
             ax.set_ylabel(r'$\rho$', fontsize=15)
     
         ax.set_xlim(-0.1, 1.1)
@@ -315,36 +319,36 @@ else:
 
 plt.show()
 
-if input_mag_press == "y":
-    fig, ax = plt.subplots(1,1)
-    ax = pfun.plotparams(ax)
-    df = pfun.read_txt_files(input_extra_frame)
+#if input_mag_press == "y":
+#    fig, ax = plt.subplots(1,1)
+#    ax = pfun.plotparams(ax)
+#    df = pfun.read_txt_files(input_extra_frame)
 
-    xnum = int(df["Values"][0][0])
-    ynum = int(df["Values"][1][0])
+#    xnum = int(df["Values"][0][0])
+#    ynum = int(df["Values"][1][0])
 
-    x_left = df["Values"][2][0]
-    x_right = df["Values"][3][0]
+#    x_left = df["Values"][2][0]
+#    x_right = df["Values"][3][0]
 
-    y_left = df["Values"][4][0]
-    y_right = df["Values"][5][0]
+#    y_left = df["Values"][4][0]
+#    y_right = df["Values"][5][0]
 
-    mp_list = mfun.mag_press(df["Values"][12], df["Values"][13])
+#    mp_list = mfun.mag_press(df["Values"][12], df["Values"][13])
 
-    A = ax.imshow(np.zeros((xnum, ynum)), cmap='plasma', interpolation='nearest',
-                 extent = [x_left, x_right, y_left, y_right], aspect='auto')
-    fill_list = pfun.two_dimension_list(mp_list, xnum, ynum)
+#    A = ax.imshow(np.zeros((xnum, ynum)), cmap='plasma', interpolation='nearest',
+#                 extent = [x_left, x_right, y_left, y_right], aspect='auto')
+#    fill_list = pfun.two_dimension_list(mp_list, xnum, ynum)
 
-    A.set_data(fill_list)
+#    A.set_data(fill_list)
 
-    cbar = fig.colorbar(A, ax = ax)
-    cbar.set_label(r'$P_M$', size=15)
+#    cbar = fig.colorbar(A, ax = ax)
+#    cbar.set_label(r'$P_M$', size=15)
 
-    ax.set_xlabel(r'$x$', fontsize=15)
-    ax.set_ylabel(r'$y$', fontsize=15)
-    cbar.ax.tick_params(labelsize=10)
+#    ax.set_xlabel(r'$x$', fontsize=15)
+#    ax.set_ylabel(r'$y$', fontsize=15)
+#    cbar.ax.tick_params(labelsize=10)
 
-    plt.show()
+#    plt.show()
     
 
 #if input_key == "yes":
@@ -366,3 +370,20 @@ if input_mag_press == "y":
 #    ax.set_xlabel(r'$t$', fontsize=15)
 #    ax.set_ylabel(r'$E_{mag}$', fontsize=15)
 #    plt.show()
+
+
+# Quick Mdot Plotter
+if input_mdot == "y":
+    time = []
+    mdot = []
+    for i in range(filenum):
+        df_fill = pfun.read_txt_files(i)
+        time.append(df_fill["Values"][6][0])
+        mdot.append(df_fill["Values"][15][0])
+
+    fig, ax = plt.subplots(1,1)
+    ax = pfun.plotparams(ax)
+    ax.plot(time, mdot, alpha = 0.5, color = "black")
+    ax.set_xlabel(r'$t$', fontsize=15)
+    ax.set_ylabel(r'$\dot{M}$', fontsize=15)
+    plt.show()

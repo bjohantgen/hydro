@@ -1,7 +1,7 @@
 // This file is full of functions to supplement the "hydro" code.
 //
 // Author: Brayden JoHantgen
-// Last Update: 9/17/2026
+// Last Update: 9/22/2026
 
 ////////////
 // Imports
@@ -63,10 +63,10 @@ pub fn total_pressure_cart(prim: Cell8) -> f64 {
 /// Output:
 /// Description:
 pub fn total_energy_cart(prim: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64) -> f64 {
-    let e = 0.5 * prim.1 * (prim.2 * prim.2 + prim.3 * prim.3 + prim.4 * prim.4) + prim.0 / (a_index - 1.0) + 0.5 * (prim.5 * prim.5 + prim.6 * prim.6 + prim.7 * prim.7);
+    let energy = 0.5 * prim.1 * (prim.2 * prim.2 + prim.3 * prim.3 + prim.4 * prim.4) + prim.0 / (a_index - 1.0) + 0.5 * (prim.5 * prim.5 + prim.6 * prim.6 + prim.7 * prim.7);
     let position = radial_distance(i_num, dx1);
     let grav = gravity(m, position, e, dx1);
-    let tot_energy = e + grav;
+    let tot_energy = energy + prim.1 * grav;
     tot_energy
 }
 
@@ -88,39 +88,38 @@ pub fn flux_x(prim: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64)
     f
 }
 
-/// Input:
-/// Output:
-/// Description:
-pub fn flux_y(prim:Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
-    let p = total_pressure_cart(prim);
-    let energy = total_energy_cart(prim, a_index, i_num, dx1, m, e);
-    let f0 = prim.1 * prim.3;
-    let f1 = prim.1 * prim.2 * prim.3 - prim.5 * prim.6;
-    let f2 = prim.1 * prim.3 * prim.3 + p - prim.6 * prim.6;
-    let f3 = prim.1 * prim.3 * prim.4 - prim.6 * prim.7;
-    let f4 = prim.5 * prim.3 - prim.6 * prim.2;
-    let f5 = 0.0;
-    let f6 = prim.7 * prim.3 - prim.6 * prim.4;
-    let f7 = (energy + p) * prim.3 - prim.6 * (prim.2 * prim.5 + prim.3 * prim.6 + prim.4 * prim.7);
-    let f_y = (f0, f1, f2, f3, f4, f5, f6, f7);
-    f_y
-}
 
 //////////////////////////////////////////
 // Defining Spherical Physical Functions
 //////////////////////////////////////////
+
+/// Input:
+/// Output:
+/// Description:
 pub fn radial_distance(i_num: usize, dr: f64) -> f64 {
     let r = (i_num as f64) * dr;
     r 
 }
 
-pub fn source(prim:Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
+/// Input:
+/// Output:
+/// Description:
+pub fn cell_volume_sphere(r0: f64, r1: f64) -> f64 {
+    let vol = (4.0 * PI / 3.0) * (f64::powf(r1, 3.0) - f64::powf(r0, 3.0));
+    vol
+}
+
+/// Input:
+/// Output:
+/// Description:
+pub fn source(prim:Cell8, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
     let r = radial_distance(i_num, dx1);
-    let energy = total_energy_cart(prim, a_index, i_num, dx1, m, e);
-    let s0 = (-2.0 / r) * prim.1 * prim.2;
-    let s1 = (-2.0 / r) * prim.1 * f64::powf(prim.2, 2.0);
-    let s2 = (-2.0 / r) * prim.2 * (energy + prim.0);
-    let s = (s0, s1, s2, 0.0, 0.0, 0.0, 0.0, 0.0);
+    let r_soft = (r*r + e*e*dx1*dx1).sqrt();
+    let grav = gravity(m, r, e, dx1);
+    let s0 = 0.0;
+    let s1 = (-2.0 / r_soft) * prim.0 + prim.1 * grav;
+    let s2 = prim.1 * prim.2 * grav;
+    let s = (s0, s1, 0.0, 0.0, 0.0, 0.0, 0.0, s2);
     s
 }
 
@@ -227,4 +226,33 @@ pub fn compute_time_step_1d(prim_l: Cell8, prim_r: Cell8, a_index: f64, dx1: f64
         dt += dx1 / a_plus;
     }    
     dt
+}
+
+/// Input:
+/// Output:
+/// Description:
+pub fn gravity_time_step(m: f64, r: f64, e: f64, dx1: f64) -> f64 {
+    let g = gravity(m, r, e, dx1).abs();
+    if g > 0.0 {
+        (dx1 / g).sqrt()
+    } else {
+        f64::INFINITY
+    }
+}
+
+/// Input:
+/// Output:
+/// Description:
+pub fn hoyle_accretion_rate(m: f64, v_inf: f64, rho_inf: f64) -> f64 {
+    let ra = 2.0 * m / (f64::powf(v_inf, 2.0));
+    let m_dot = PI * f64::powf(ra, 2.0) * rho_inf * v_inf;
+    m_dot
+}
+
+/// Input:
+/// Output:
+/// Description:
+pub fn accretion_rate(r: f64, rho: f64, v: f64) -> f64 {
+    let m_dot = -4.0 * PI * f64::powf(r, 2.0) * rho * v;
+    m_dot
 }

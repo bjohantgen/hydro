@@ -1,7 +1,7 @@
 // This file is full of functions to supplement the "hydro" code.
 //
 // Author: Brayden JoHantgen
-// Last Update: 9/17/2026
+// Last Update: 9/22/2026
 
 ///////////////////////////////////
 // Importing and Defining Structs
@@ -77,7 +77,7 @@ pub type Cell3 = (f64, f64, f64);
 /// Output:
 /// Description:
 pub fn init_prims_1d(init_conds: &InitConds, drive: &Driver) -> Primitives {
-    let ncells = drive.x1_cell + 2;
+    let ncells = drive.x1_cell + 4;
 
     let mut init_p = vec![0.0; ncells];
     let mut init_rho = vec![0.0; ncells];
@@ -111,6 +111,50 @@ pub fn init_prims_1d(init_conds: &InitConds, drive: &Driver) -> Primitives {
     };
 
     prims
+}
+
+/// Input:
+/// Output:
+/// Description:
+pub fn cell_loc(prims: &Primitives, i: usize) -> Cell8 {
+    let cell = (prims.p[i], prims.rho[i], prims.vx1[i], prims.vx2[i], prims.vx3[i], prims.bx1[i], prims.bx2[i], prims.bx3[i]);
+    cell
+}
+
+/// Input:
+/// Output:
+/// Description:
+pub fn copy_cell(prims: &mut Primitives, src: usize, dst: usize) {
+    prims.p[dst] = prims.p[src];
+    prims.rho[dst] = prims.rho[src];
+    prims.vx1[dst] = prims.vx1[src];
+    prims.vx2[dst] = prims.vx2[src];
+    prims.vx3[dst] = prims.vx3[src];
+    prims.bx1[dst] = prims.bx1[src];
+    prims.bx2[dst] = prims.bx2[src];
+    prims.bx3[dst] = prims.bx3[src];
+}
+
+/// Input:
+/// Output:
+/// Description:
+pub fn apply_bcs_1d(prims: &mut Primitives, init_conds: &InitConds, drive: &Driver) {
+    let n = prims.p.len();
+    let first_active = 2;
+
+    copy_cell(prims, first_active, 1);
+    copy_cell(prims, first_active, 0);
+ 
+    for &dst in &[n - 2, n - 1] {
+        prims.p[dst] = init_conds.p.0;
+        prims.rho[dst] = init_conds.rho.0;
+        prims.vx1[dst] = init_conds.vx1.0;
+        prims.vx2[dst] = init_conds.vx2.0;
+        prims.vx3[dst] = init_conds.vx3.0;
+        prims.bx1[dst] = init_conds.bx1.0;
+        prims.bx2[dst] = init_conds.bx2.0;
+        prims.bx3[dst] = init_conds.bx3.0;
+    }
 }
 
 /// Input:
@@ -169,14 +213,16 @@ pub fn cons_from_prim_1d(prims: &Primitives, a_index: f64, dx1: f64, m: f64, e: 
 /// Output:
 /// Description:
 pub fn cons_to_prim_1d(con: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
-    let vx1 = con.1 / con.0;
-    let vx2 = con.2 / con.0;
-    let vx3 = con.3 / con.0;
+    let rho = con.0.max(1e-8);
+    let vx1 = con.1 / rho;
+    let vx2 = con.2 / rho;
+    let vx3 = con.3 / rho;
     let position = math_func::radial_distance(i_num, dx1);
     let grav = math_func::gravity(m, position, e, dx1);
-    let p = (a_index - 1.0) * (con.7 - grav - 0.5 * (con.0 * (vx1 * vx1 + vx2 * vx2 + vx3 * vx3) + (con.4 * con.4 + con.5 * con.5 + con.6 * con.6)));
-    let prim = (p, con.0, vx1, vx2, vx3, con.4, con.5, con.6);
-    prim
+    let p_raw = (a_index - 1.0) * (con.7 - rho * grav
+        - 0.5 * (rho * (vx1*vx1 + vx2*vx2 + vx3*vx3) + (con.4*con.4 + con.5*con.5 + con.6*con.6)));
+    let p = p_raw.max(1e-8);
+    (p, rho, vx1, vx2, vx3, con.4, con.5, con.6)
 }
 
 /// Input:
@@ -280,28 +326,9 @@ pub fn hll_1d(prim_1: Cell8, prim_2: Cell8, prim_3: Cell8, prim_4: Cell8, a_inde
 pub fn godonov_1d(prims: &Primitives, a_index: f64, dx1: f64, m: f64, e: f64) ->  Vec<Cell8> {
     let size = prims.p.len() as usize;
     let mut go = vec![(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0); size-1];
-    for i in 0..(size-1) {
-        if i == 0 {
-            let prim_0 = (prims.p[0], prims.rho[0], prims.vx1[0], prims.vx2[0], prims.vx3[0], prims.bx1[0], prims.bx2[0], prims.bx3[0]);
-            let prim_1 = (prims.p[1], prims.rho[1], prims.vx1[1], prims.vx2[1], prims.vx3[1], prims.bx1[1], prims.bx2[1], prims.bx3[1]);
-            let prim_2 = (prims.p[2], prims.rho[2], prims.vx1[2], prims.vx2[2], prims.vx3[2], prims.bx1[2], prims.bx2[2], prims.bx3[2]);
-            let prim_3 = (prims.p[3], prims.rho[3], prims.vx1[3], prims.vx2[3], prims.vx3[3], prims.bx1[3], prims.bx2[3], prims.bx3[3]);
-            go[i] = hll_1d(prim_0, prim_1, prim_2, prim_3, a_index, 1, 2, dx1, m, e);
 
-        } else if i < (size - 2) {
-            let prim_fst = (prims.p[i-1], prims.rho[i-1], prims.vx1[i-1], prims.vx2[i-1], prims.vx3[i-1], prims.bx1[i-1], prims.bx2[i-1], prims.bx3[i-1]);
-            let prim_s = (prims.p[i], prims.rho[i], prims.vx1[i], prims.vx2[i], prims.vx3[i], prims.bx1[i], prims.bx2[i], prims.bx3[i]);
-            let prim_t = (prims.p[i+1], prims.rho[i+1], prims.vx1[i+1], prims.vx2[i+1], prims.vx3[i+1], prims.bx1[i+1], prims.bx2[i+1], prims.bx3[i+1]);
-            let prim_frt = (prims.p[i+2], prims.rho[i+2], prims.vx1[i+2], prims.vx2[i+2], prims.vx3[i+2], prims.bx1[i+2], prims.bx2[i+2], prims.bx3[i+2]);
-            go[i] = hll_1d(prim_fst, prim_s, prim_t, prim_frt, a_index, i, i+1, dx1, m, e);
-
-        } else {
-            let prim_0 = (prims.p[size-4], prims.rho[size-4], prims.vx1[size-4], prims.vx2[size-4], prims.vx3[size-4], prims.bx1[size-4], prims.bx2[size-4], prims.bx3[size-4]);
-            let prim_1 = (prims.p[size-3], prims.rho[size-3], prims.vx1[size-3], prims.vx2[size-3], prims.vx3[size-3], prims.bx1[size-3], prims.bx2[size-3], prims.bx3[size-3]);
-            let prim_2 = (prims.p[size-2], prims.rho[size-2], prims.vx1[size-2], prims.vx2[size-2], prims.vx3[size-2], prims.bx1[size-2], prims.bx2[size-2], prims.bx3[size-2]);
-            let prim_3 = (prims.p[size-1], prims.rho[size-1], prims.vx1[size-1], prims.vx2[size-1], prims.vx3[size-1], prims.bx1[size-1], prims.bx2[size-1], prims.bx3[size-1]);
-            go[i] = hll_1d(prim_0, prim_1, prim_2, prim_3, a_index, size-3, size-2, dx1, m, e);
-        }
+    for i in 1..(size-2) {
+        go[i] = hll_1d(cell_loc(prims, i-1), cell_loc(prims, i), cell_loc(prims, i+1), cell_loc(prims, i+2), a_index, i, i+1, dx1, m, e);
     }
     go
 }
@@ -323,37 +350,30 @@ pub fn l_function_1d(prims: &Primitives, a_index: f64, dx1: f64, m: f64, e: f64)
 
     let f_vec = godonov_1d(prims, a_index, dx1, m, e);
 
-    l_rho[0] = 0.0;
-    l_mx1[0] = 0.0;
-    l_mx2[0] = 0.0;
-    l_mx3[0] = 0.0;
-    l_bx1[0] = 0.0;
-    l_bx2[0] = 0.0;
-    l_bx3[0] = 0.0;
-    l_e[0] = 0.0;
+    for &i in &[0usize, 1, size - 2, size - 1] {
+        l_rho[i] = 0.0;
+        l_mx1[i] = 0.0;
+        l_mx2[i] = 0.0;
+        l_mx3[i] = 0.0;
+        l_bx1[i] = 0.0;
+        l_bx2[i] = 0.0;
+        l_bx3[i] = 0.0;
+        l_e[i] = 0.0;
+    }
 
-    for i in 1..(size-1) {
+    for i in 2..(size-2) {
         let p_fill = (prims.p[i], prims.rho[i], prims.vx1[i], prims.vx2[i], prims.vx3[i], prims.bx1[i], prims.bx2[i], prims.bx3[i]);
-        let s = math_func::source(p_fill, a_index, i, dx1, m, e);
+        let s = math_func::source(p_fill, i, dx1, m, e);
 
         l_rho[i] = s.0 - (f_vec[i].0 - f_vec[i-1].0) / dx1;
         l_mx1[i] = s.1 - (f_vec[i].1 - f_vec[i-1].1) / dx1;
-        l_mx2[i] = - (f_vec[i].2 - f_vec[i-1].2) / dx1;
-        l_mx3[i] = - (f_vec[i].3 - f_vec[i-1].3) / dx1;
-        l_bx1[i] = - (f_vec[i].4 - f_vec[i-1].4) / dx1;
-        l_bx2[i] = - (f_vec[i].5 - f_vec[i-1].5) / dx1;
-        l_bx3[i] = - (f_vec[i].6 - f_vec[i-1].6) / dx1;
-        l_e[i] = s.2 - (f_vec[i].7 - f_vec[i-1].7) / dx1;
+        l_mx2[i] = s.2 - (f_vec[i].2 - f_vec[i-1].2) / dx1;
+        l_mx3[i] = s.3 - (f_vec[i].3 - f_vec[i-1].3) / dx1;
+        l_bx1[i] = s.4 - (f_vec[i].4 - f_vec[i-1].4) / dx1;
+        l_bx2[i] = s.5 - (f_vec[i].5 - f_vec[i-1].5) / dx1;
+        l_bx3[i] = s.6 - (f_vec[i].6 - f_vec[i-1].6) / dx1;
+        l_e[i] = s.7 - (f_vec[i].7 - f_vec[i-1].7) / dx1;
     }
-
-    l_rho[size-1] = 0.0;
-    l_mx1[size-1] = 0.0;
-    l_mx2[size-1] = 0.0;
-    l_mx3[size-1] = 0.0;
-    l_bx1[size-1] = 0.0;
-    l_bx2[size-1] = 0.0;
-    l_bx3[size-1] = 0.0;
-    l_e[size-1] = 0.0;
 
     let l_vec = Conserved{
         rho: l_rho,
@@ -372,7 +392,7 @@ pub fn l_function_1d(prims: &Primitives, a_index: f64, dx1: f64, m: f64, e: f64)
 /// Input:
 /// Output:
 /// Description:
-pub fn rk_step_1d(prims: &Primitives, cons: &Conserved, a_index: f64, dx1: f64, dt: f64, m: f64, e: f64) -> Conserved {
+pub fn rk_step_1d(prims: &Primitives, cons: &Conserved, init_conds: &InitConds, drive: &Driver, a_index: f64, dx1: f64, dt: f64, m: f64, e: f64) -> Conserved {
     let size = prims.p.len() as usize;
     let l0 = l_function_1d(prims, a_index, dx1, m, e);
     
@@ -407,7 +427,8 @@ pub fn rk_step_1d(prims: &Primitives, cons: &Conserved, a_index: f64, dx1: f64, 
         e: con0_e,
     };
 
-    let prims_1 = prim_from_cons_1d(&cons0, a_index, dx1, m, e);
+    let mut prims_1 = prim_from_cons_1d(&cons0, a_index, dx1, m, e);
+    apply_bcs_1d(&mut prims_1, init_conds, drive);
     let l1 = l_function_1d(&prims_1, a_index, dx1, m, e);
 
     let mut con1_rho = vec![0.0; size];
@@ -443,7 +464,8 @@ pub fn rk_step_1d(prims: &Primitives, cons: &Conserved, a_index: f64, dx1: f64, 
         e: con1_e,
     };
 
-    let prims_2 = prim_from_cons_1d(&cons1, a_index, dx1, m, e);
+    let mut prims_2 = prim_from_cons_1d(&cons1, a_index, dx1, m, e);
+    apply_bcs_1d(&mut prims_2, init_conds, drive);
     let l2 = l_function_1d(&prims_2, a_index, dx1, m, e);
 
     let mut con2_rho = vec![0.0; size];
@@ -487,16 +509,30 @@ pub fn rk_step_1d(prims: &Primitives, cons: &Conserved, a_index: f64, dx1: f64, 
 /// Input:
 /// Output:
 /// Description:
-pub fn determine_time_step_1d(prims: &Primitives, drive: &Driver, a_index: f64, dx1: f64) -> f64 {
+pub fn determine_time_step_1d(prims: &Primitives, drive: &Driver, a_index: f64, dx1: f64, m: f64, e: f64) -> f64 {
     let mut dt = f64::INFINITY;
+    let size = prims.p.len();
 
-        for i in 0..(drive.x1_cell - 1) {
+        for i in 1..(size - 2) {
             let prim_fill_1 = (prims.p[i], prims.rho[i], prims.vx1[i], prims.vx2[i], prims.vx3[i], prims.bx1[i], prims.bx2[i], prims.bx3[i]);
             let prim_fill_2 = (prims.p[i+1], prims.rho[i+1], prims.vx1[i+1], prims.vx2[i+1], prims.vx3[i+1], prims.bx1[i+1], prims.bx2[i+1], prims.bx3[i+1]);
 
             let dt_check = math_func::compute_time_step_1d(prim_fill_1, prim_fill_2, a_index, dx1);
+            assert!(
+                dt_check.is_finite(),
+                "non-finite dt at interface {}: p=({}, {}) rho=({}, {})",
+                i, prims.p[i], prims.p[i + 1], prims.rho[i], prims.rho[i + 1]
+            );
+
             dt = dt.min(dt_check);
         }
+
+        for i in 2..(size - 2) {
+            let r = math_func::radial_distance(i, dx1);
+            let dt_grav = math_func::gravity_time_step(m, r, e, dx1);
+            dt = dt.min(dt_grav);
+        }
+
     dt = drive.cfl * dt;
     dt
 }
@@ -513,7 +549,7 @@ pub fn determine_time_step_1d(prims: &Primitives, drive: &Driver, a_index: f64, 
 /// Input:
 /// Output:
 /// Description:
-pub fn write_checkpoint(prims: &Primitives, drive: &Driver, t: f64, check_count: i64) -> Result<(), Box<dyn std::error::Error>> {
+pub fn write_checkpoint(prims: &Primitives, drive: &Driver, init_setup: &InitConds, t: f64, check_count: i64) -> Result<(), Box<dyn std::error::Error>> {
     let file_num = check_count.to_string();
     let file_type = ".txt".to_string();
     let file_name = format!("{}{}", file_num, file_type);
@@ -540,6 +576,8 @@ pub fn write_checkpoint(prims: &Primitives, drive: &Driver, t: f64, check_count:
     let mut bx1_string = "Bx1: ".to_string();
     let mut bx2_string = "Bx2: ".to_string();
     let mut bx3_string = "Bx3: ".to_string();
+
+    let mut mdot_string = "M_dot: ".to_string();
         
     for i in 0..size {
         let p_fill = prims.p[i].to_string() + &" ".to_string();
@@ -566,10 +604,18 @@ pub fn write_checkpoint(prims: &Primitives, drive: &Driver, t: f64, check_count:
         let bx3_fill = prims.bx3[i].to_string() + &" ".to_string();
         bx3_string.push_str(&bx3_fill);
     }
+
+    let dr = (drive.x1_range.1 - drive.x1_range.0) / (drive.x1_cell as f64);
+    let r = (math_func::radial_distance((drive.x1_cell as f64 /2.0) as usize, dr) + math_func::radial_distance(((drive.x1_cell as f64 /2.0)+1.0) as usize, dr)) / 2.0;
+    //let mdot_fill = math_func::accretion_rate(r, prims.rho[(drive.x1_cell as f64 /2.0) as usize], prims.vx1[(drive.x1_cell as f64 /2.0) as usize]).to_string() 
+    let index = (drive.x1_cell as f64 /2.0) as usize;
+    let mdot_fill = (4.0 * PI * r * r * hll_1d(cell_loc(prims, index-1), cell_loc(prims, index), cell_loc(prims, index+1), cell_loc(prims, index+2), init_setup.adiabatic_index, index, index+1, dr, init_setup.bh_mass, init_setup.softness).0).to_string() + &" ".to_string();
+    mdot_string.push_str(&mdot_fill);
      
     let file = fs::OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(output_file_path)?;
     
     let mut writer = BufWriter::new(file);
@@ -591,6 +637,8 @@ pub fn write_checkpoint(prims: &Primitives, drive: &Driver, t: f64, check_count:
     writeln!(writer, "{}", bx1_string)?;
     writeln!(writer, "{}", bx2_string)?;
     writeln!(writer, "{}", bx3_string)?;
+
+    writeln!(writer, "{}", mdot_string)?;
 
     writer.flush()?;
     

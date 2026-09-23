@@ -52,28 +52,34 @@ def line_num(num, directory = "time_step_files"):
         line_count = len(f.readlines())
     return line_count
 
-def read_txt_files(num, directory = "time_step_files"):
+def read_txt_files(num, directory="time_step_files"):
     '''
-    Input:
-    Output:
-    Description:
     '''
-    file_path = directory+"/"+str(num)+".txt"
+    file_path = f"{directory}/{num}.txt"
 
     file_data = {}
-    line_count = line_num(num, directory = directory)
 
-    with open(file_path, 'r') as f:
-        line_list = f.readlines()
-        for i in range(line_count):
-            line_dict_split = line_list[i].split(": ")
-            float_list = line_dict_split[1].split(" ")
-            float_data = []
-            for j in range(len(float_list)-1):
-                float_data.append(float(float_list[j]))
-            line_dict = {line_dict_split[0]: float_data}
-            file_data.update(line_dict)
-    df = pd.DataFrame(list(file_data.items()), columns = ['Physics', 'Values'])
+    with open(file_path, "r") as f:
+        for line in f:
+            line = line.strip()
+
+            # Skip blank lines
+            if not line:
+                continue
+
+            # Split only at the first ":"
+            name, values = line.split(":", 1)
+
+            values = values.split()
+            float_data = [float(x) for x in values]
+
+            file_data[name.strip()] = float_data
+
+    df = pd.DataFrame(
+        list(file_data.items()),
+        columns=["Physics", "Values"]
+    )
+
     return df
 
 def one_dimension_list(od_list, xnum):
@@ -82,7 +88,7 @@ def one_dimension_list(od_list, xnum):
     Output:
     Description:
     '''
-    one_d = od_list[1:-1]
+    one_d = od_list[2:-2]
     return one_d
 
 def two_dimension_list(td_list, xnum, ynum):
