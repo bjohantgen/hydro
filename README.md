@@ -1,5 +1,5 @@
 # hydro v0.3
-#### Last Update 9/16/2026
+#### Last Update 9/30/2026
 This repository holds the hydrodynamics code that I have been developing as a graduate student at Clemson University (Fall 2025-Present). This code currently has the following implemented:
 - 1D Hydrocode - Cartesian, Spherical (In progress!)
 - 1D MHD - Cartesian
@@ -7,30 +7,24 @@ This repository holds the hydrodynamics code that I have been developing as a gr
 
 ### Code Structure
 #### main.rs
+This is where the simulation is initialized and run. The performance metrics are output by this file while the simulation is run. This file is responsible for writing txt files after each checkpoint for plotting purposes.
+
 #### math_func.rs
-- Imports
-- Define Datatypes:
-    - Cell8
-    - Cell5
-    - Cell3
-- Coordinate Free Functions:
-    - sound speed
-    - bondi accretion rate
-- Cartesian Physical Functions:
-- Spherical Physical Functions:
-- Simulation Functions:
+
 
 #### sim_func.rs
-- Imports and Defining Structs:
-    - InitConds
-    - Driver
-    - Primitives
-    - Conserved
+
 
 #### test_conds.rs
 
+
 #### math_functions.py
+
+
 #### plotting_functions.py
+
+
 #### simple_animator.py
+
 
 ### Planned Features

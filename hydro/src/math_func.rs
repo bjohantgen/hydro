@@ -42,7 +42,7 @@ pub fn bondi_accretion_rate(m: f64, a_index: f64, p_infinity: f64, rho_infinity:
 /// Description:
 pub fn gravity(m:f64, r: f64, e: f64, dx1: f64) -> f64 {
     let numerator = -1.0 * m;
-    let denominator = f64::powf(r, 2.0) + (f64::powf(e, 2.0)) * (f64::powf(dx1, 2.0)) * f64::exp(-f64::powf(r, 2.0) / (f64::powf(e, 2.0) * f64::powf(dx1, 2.0)));
+    let denominator = f64::powf(r, 2.0) + (f64::powf(e, 2.0))* (f64::powf(dx1, 2.0)) * f64::exp(-f64::powf(r, 2.0) / (f64::powf(e, 2.0) * f64::powf(dx1, 2.0)));
     let p = numerator / (denominator.sqrt());
     p
 }

@@ -1,7 +1,7 @@
 // This is the main file of the hydro simulation.
 //
 // Author: Brayden JoHantgen
-// Last Update: 9/22/2026
+// Last Update: 9/30/2026
 
 ////////////
 // Imports
@@ -14,32 +14,26 @@ pub mod math_func;
 pub mod sim_func;
 pub mod test_conds;
 
+/*
+Look at radial profiles
+Amplitude needs to be lowered
+Normalize the accretion rate
+Truncation error causes the issue of sharp peak
+*/
+
 ///////////////
 // Simulation
 ///////////////
 fn main() {
 
     // Initial Conditions
-    let init_setup = sim_func::InitConds{
-                        adiabatic_index: 5.0 / 3.0,
-                        discontinuity: 0.0,
-                        bh_mass: 1.0,
-                        softness: 5.0,
-                        p: (1.0, 0.0),
-                        rho: (1.0, 0.0),
-                        vx1: (-0.6*(5.0/3.0_f64).sqrt(), 0.0), 
-                        vx2: (0.0, 0.0),
-                        vx3: (0.0, 0.0),
-                        bx1: (0.0, 0.0),
-                        bx2: (0.0, 0.0),
-                        bx3: (0.0, 0.0),
-    };
+    let init_setup = bondi_accretion_state();
 
     let drive = sim_func::Driver{
                 cfl: 0.3,
                 tfinal: 5.001,
                 checkpoint: 0.0125,
-                x1_cell: 256,
+                x1_cell: 512,
                 x1_range: (0.1, 1.0),
                 x2_cell: 0,
                 x2_range: (0.0, 0.0),
