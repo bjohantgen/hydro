@@ -27,20 +27,20 @@ Truncation error causes the issue of sharp peak
 fn main() {
 
     // Initial Conditions
-    let init_setup = bondi_accretion_state();
+    let init_setup = test_conds::sod_shock();
 
     let drive = sim_func::Driver{
                 cfl: 0.3,
-                tfinal: 5.001,
+                tfinal: 1.001,
                 checkpoint: 0.0125,
-                x1_cell: 512,
-                x1_range: (0.1, 1.0),
+                x1_cell: 64,
+                x1_range: (0.0, 1.0),
                 x2_cell: 0,
                 x2_range: (0.0, 0.0),
                 x3_cell: 0,
                 x3_range: (0.0, 0.0),
     };
-
+    /*
     // Simulation Prerequisites
     let before = Instant::now();
 
@@ -89,5 +89,5 @@ fn main() {
     println!("The number of timesteps: {:?}", time_step_count);
     println!("The runtime in seconds: {:?}", runtime);
     println!("The performance in zones per second: {:.2?}", performance);
-    
+    */
 }

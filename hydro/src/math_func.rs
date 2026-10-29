@@ -1,7 +1,7 @@
 // This file is full of functions to supplement the "hydro" code.
 //
 // Author: Brayden JoHantgen
-// Last Update: 9/22/2026
+// Last Update: 10/28/2026
 
 ////////////
 // Imports
@@ -20,16 +20,49 @@ pub type Cell3 = (f64, f64, f64);
 ////////////////////////////////////////////////
 
 /// Input:
+///     prim (Cell8): the primitive variables of a single cell
+///     a_index (f64): the adiabatic index of the gas
 /// Output:
+///     a (f64): the sound speed of the gas
 /// Description:
+///     Equation: c_s = sqrt(gamma * P / rho)
+///     This function calculates the sound speed using the equation above.
+///     This function does not check for negative arguments of the square root.
 pub fn sound_speed(prim: Cell8, a_index: f64) -> f64 {
     let a = (a_index * prim.0 / prim.1).sqrt();
     a
 }
 
 /// Input:
+///     m (f64): the black hole mass
+///     a_index (f64): the adiabatic index of the gas
+///     p_infinity (f64): the pressure of the gas at infinity
+///     rho_infinity (f64): the density of the gas at infinity
 /// Output:
+///     rb (f64): the Bondi radius of the black hole with mass m
 /// Description:
+///     Equation: R_b = G * M / (c_s)^2
+///     This function calculates the Bondi radius of a black hole and assumes G = 1.
+///     This function does not check for negative arguments of the square root.
+pub fn bondi_radius(m: f64, a_index: f64, p_infinity: f64, rho_infinity: f64) -> f64 {
+    let c_s = (a_index * p_infinity / rho_infinity).sqrt();
+    let rb = m / (f64::powf(c_s, 2.0));
+    rb
+}
+
+/// Input:
+///     m (f64): the black hole mass
+///     a_index (f64): the adiabatic index of the gas
+///     p_infinity (f64): the pressure of the gas at infinity
+///     rho_infinity (f64): the density of the gas at infinity
+/// Output:
+///     m_dot (f64): the Bondi accretion rate
+/// Description:
+///     Equations: M_dot = 4 * pi * lamda_c * (G * M)^2 * c_s^-3 * rho_infinity
+///                c_s = sqrt(gamma * p_infinity / rho_infinity)
+///                lamda_c = (1/2)^((gamma + 1) / (2 * (gamma - 1))) * ((5 - 3 * gamma) / 4)^(-(5 - 3 * gamma) / (2 * (gamma - 1)))
+///     This function calculates the Bondi accretion rate and assumes G = 1.
+///     This function does not check for negative arguments of the square root.
 pub fn bondi_accretion_rate(m: f64, a_index: f64, p_infinity: f64, rho_infinity: f64) -> f64 {
     let l_c = f64::powf(0.5, (a_index + 1.0) / (2.0 * (a_index - 1.0))) * f64::powf((5.0 - 3.0 * a_index) / 4.0, -(5.0 - 3.0 * a_index) / (2.0 * (a_index - 1.0)));
     let c_s = (a_index * p_infinity / rho_infinity).sqrt();
@@ -37,23 +70,18 @@ pub fn bondi_accretion_rate(m: f64, a_index: f64, p_infinity: f64, rho_infinity:
     m_dot
 }
 
-/// Input:
-/// Output:
-/// Description:
-pub fn gravity(m:f64, r: f64, e: f64, dx1: f64) -> f64 {
-    let numerator = -1.0 * m;
-    let denominator = f64::powf(r, 2.0) + (f64::powf(e, 2.0))* (f64::powf(dx1, 2.0)) * f64::exp(-f64::powf(r, 2.0) / (f64::powf(e, 2.0) * f64::powf(dx1, 2.0)));
-    let p = numerator / (denominator.sqrt());
-    p
-}
-
 //////////////////////////////////////////
 // Defining Cartesean Physical Functions
 //////////////////////////////////////////
 
 /// Input:
+///     prim (Cell8): the primitive variables of a cell
 /// Output:
+///     p (f64): the total pressure in the cell
 /// Description:
+///     Equation: P + 0.5 * B^2
+///     This function calculates the total pressure in the cell using the gas pressure and
+///     the strength of the magnetic fields.
 pub fn total_pressure_cart(prim: Cell8) -> f64 {
     let p = prim.0 + 0.5 * (prim.5 * prim.5 + prim.6 * prim.6 + prim.7 * prim.7);
     p
@@ -88,7 +116,6 @@ pub fn flux_x(prim: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64)
     f
 }
 
-
 //////////////////////////////////////////
 // Defining Spherical Physical Functions
 //////////////////////////////////////////
@@ -99,6 +126,16 @@ pub fn flux_x(prim: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64)
 pub fn radial_distance(i_num: usize, dr: f64) -> f64 {
     let r = (i_num as f64) * dr;
     r 
+}
+
+/// Input:
+/// Output:
+/// Description:
+pub fn gravity(m:f64, r: f64, e: f64, dx1: f64) -> f64 {
+    let numerator = -1.0 * m;
+    let denominator = f64::powf(r, 2.0) + (f64::powf(e, 2.0))* (f64::powf(dx1, 2.0)) * f64::exp(-f64::powf(r, 2.0) / (f64::powf(e, 2.0) * f64::powf(dx1, 2.0)));
+    let p = numerator / (denominator.sqrt());
+    p
 }
 
 /// Input:

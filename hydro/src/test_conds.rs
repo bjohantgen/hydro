@@ -2,7 +2,7 @@
 // to supplement the "hydro" code.
 //
 // Author: Brayden JoHantgen
-// Last Update: 9/30/2026
+// Last Update: 10/28/2026
 
 //////////////
 // Importing 
@@ -52,6 +52,23 @@ pub fn hard_shock() -> sim_func::InitConds {
 }
 
 // Brio-Wu Shock Tube
+pub fn brio_wu_shock() -> sim_func::InitConds {
+    let bw = sim_func::InitConds{
+        adiabatic_index: 2.0,
+        discontinuity: 0.5,
+        bh_mass: 0.0,
+        softness: 0.0,
+        p: (1.0, 0.1),
+        rho: (1.0, 0.125),
+        vx1: (0.0, 0.0), 
+        vx2: (0.0, 0.0),
+        vx3: (0.0, 0.0),
+        bx1: (0.75, 0.75),
+        bx2: (1.0, -1.0),
+        bx3: (0.0, 0.0),
+    };
+    bw
+}
 
 // Bondi-Accretion
 pub fn bondi_accretion_state() -> sim_func::InitConds {
