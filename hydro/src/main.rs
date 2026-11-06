@@ -1,7 +1,7 @@
 // This is the main file of the hydro simulation.
 //
 // Author: Brayden JoHantgen
-// Last Update: 9/30/2026
+// Last Update: 11/3/2026
 
 ////////////
 // Imports
@@ -19,6 +19,8 @@ Look at radial profiles
 Amplitude needs to be lowered
 Normalize the accretion rate
 Truncation error causes the issue of sharp peak
+Look for Computation LRD papers, make a list, and add to Lit Review
+Radiative Transfer
 */
 
 ///////////////
@@ -27,11 +29,11 @@ Truncation error causes the issue of sharp peak
 fn main() {
 
     // Initial Conditions
-    let init_setup = test_conds::sod_shock();
+    let init_setup = test_conds::bondi_accretion_state_3();
 
     let drive = sim_func::Driver{
                 cfl: 0.3,
-                tfinal: 1.001,
+                tfinal: 5.381,
                 checkpoint: 0.0125,
                 x1_cell: 64,
                 x1_range: (0.0, 1.0),
@@ -40,6 +42,11 @@ fn main() {
                 x3_cell: 0,
                 x3_range: (0.0, 0.0),
     };
+
+    let test_prim = (init_setup.p.0, init_setup.rho.0, init_setup.vx1.0, init_setup.vx2.0, init_setup.vx3.0, init_setup.bx1.0, init_setup.bx2.0, init_setup.bx3.0);
+    let test_value = math_func::time_unit(init_setup.bh_mass, init_setup.adiabatic_index, init_setup.p.0, init_setup.rho.0);
+    println!("{:?}", test_value);
+
     /*
     // Simulation Prerequisites
     let before = Instant::now();
@@ -89,5 +96,5 @@ fn main() {
     println!("The number of timesteps: {:?}", time_step_count);
     println!("The runtime in seconds: {:?}", runtime);
     println!("The performance in zones per second: {:.2?}", performance);
-    */
+   */ 
 }

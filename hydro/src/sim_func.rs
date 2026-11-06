@@ -1,7 +1,7 @@
 // This file is full of functions to supplement the "hydro" code.
 //
 // Author: Brayden JoHantgen
-// Last Update: 9/22/2026
+// Last Update: 11/3/2026
 
 ///////////////////////////////////
 // Importing and Defining Structs
@@ -72,10 +72,15 @@ pub type Cell3 = (f64, f64, f64);
 //////////////////////////////
 // One Dimensional Functions
 //////////////////////////////
-
+/* 
 /// Input:
+///     init_conds (&InitConds): the initial conditions of the simulation
+///     drive (&Driver): the simulation parameters
 /// Output:
+///     prims (Primitives): the primitive variables for each cell in the grid
 /// Description:
+///     This funciton uses drive to initialize the grid and then uses init_conds
+///     to populate the grid with the initial primitive varibles.
 pub fn init_prims_1d(init_conds: &InitConds, drive: &Driver) -> Primitives {
     let ncells = drive.x1_cell + 4;
 
@@ -114,8 +119,12 @@ pub fn init_prims_1d(init_conds: &InitConds, drive: &Driver) -> Primitives {
 }
 
 /// Input:
+///     prims (&Primitives): the grid containing all the primitive variables for each cell
+///     i (usize): the index of the desired cell
 /// Output:
+///     cell (Cell8): the primitive variables of the desired cell
 /// Description:
+///     This function takes the index of a cell to return the primitive variables of that cell on the grid
 pub fn cell_loc(prims: &Primitives, i: usize) -> Cell8 {
     let cell = (prims.p[i], prims.rho[i], prims.vx1[i], prims.vx2[i], prims.vx3[i], prims.bx1[i], prims.bx2[i], prims.bx3[i]);
     cell
@@ -644,3 +653,4 @@ pub fn write_checkpoint(prims: &Primitives, drive: &Driver, init_setup: &InitCon
     
     Ok(())
 }
+*/

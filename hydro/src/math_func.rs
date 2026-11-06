@@ -1,7 +1,7 @@
 // This file is full of functions to supplement the "hydro" code.
 //
 // Author: Brayden JoHantgen
-// Last Update: 10/28/2026
+// Last Update: 11/6/2026
 
 ////////////
 // Imports
@@ -15,9 +15,9 @@ pub type Cell8 = (f64, f64, f64, f64, f64, f64, f64, f64);
 pub type Cell5 = (f64, f64, f64, f64, f64);
 pub type Cell3 = (f64, f64, f64);
 
-////////////////////////////////////////////////
-// Defining Coordinate Free Physical Functions
-////////////////////////////////////////////////
+////////////////////////////////
+// Defining Physical Functions
+////////////////////////////////
 
 /// Input:
 ///     prim (Cell8): the primitive variables of a single cell
@@ -70,26 +70,55 @@ pub fn bondi_accretion_rate(m: f64, a_index: f64, p_infinity: f64, rho_infinity:
     m_dot
 }
 
-//////////////////////////////////////////
-// Defining Cartesean Physical Functions
-//////////////////////////////////////////
-
 /// Input:
-///     prim (Cell8): the primitive variables of a cell
+///     m (f64): the black hole mass
+///     a_index (f64): the adiabatic index of the gas
+///     p_infinity (f64): the pressure of the gas at infinity
+///     rho_infinity (f64): the density of the gas at infinity
 /// Output:
-///     p (f64): the total pressure in the cell
+///     t (f64): the characteristic time of the simulation
 /// Description:
-///     Equation: P + 0.5 * B^2
-///     This function calculates the total pressure in the cell using the gas pressure and
-///     the strength of the magnetic fields.
-pub fn total_pressure_cart(prim: Cell8) -> f64 {
-    let p = prim.0 + 0.5 * (prim.5 * prim.5 + prim.6 * prim.6 + prim.7 * prim.7);
-    p
+///     Equation: t = r_b / c_infinity
+///     This function uses the Bondi radius function to calculate the characteristic
+///     time of the simulation.
+pub fn time_unit(m: f64, a_index: f64, p_infinity: f64, rho_infinity: f64) -> f64 {
+    let r_b = bondi_radius(m, a_index, p_infinity, rho_infinity);
+    let c_s = (a_index * p_infinity / rho_infinity).sqrt();
+    let t = r_b / c_s;
+    t
 }
 
 /// Input:
 /// Output:
 /// Description:
+pub fn radial_distance(i_num: usize, dr: f64) -> f64 {
+    let r = (i_num as f64) * dr;
+    r 
+}
+
+/// Input:
+/// Output:
+/// Description:
+pub fn gravity(m:f64, r: f64, e: f64, dx1: f64) -> f64 {
+    let numerator = -1.0 * m;
+    let denominator = f64::powf(r, 2.0) + (f64::powf(e, 2.0))* (f64::powf(dx1, 2.0)) * f64::exp(-f64::powf(r, 2.0) / (f64::powf(e, 2.0) * f64::powf(dx1, 2.0)));
+    let p = numerator / (denominator.sqrt());
+    p
+}
+
+/// Input:
+///     prim (Cell8): the primitive variables of the cell
+///     a_index (f64): the adiabatic index
+///     i_num (usize): the index of the cell
+///     dx1 (f64): the width of a cell
+///     m (f64): the mass of the black hole
+///     e (f64): the softening parameter
+/// Output:
+///     tot_energy (f64): the total energy density
+/// Description:
+///     Equation: E = rho * (u^2/2 + epsilon + phi)
+///     This function uses the radial distance and gravity functions to calculate
+///     the toal energy density of the desired cell. 
 pub fn total_energy_cart(prim: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64) -> f64 {
     let energy = 0.5 * prim.1 * (prim.2 * prim.2 + prim.3 * prim.3 + prim.4 * prim.4) + prim.0 / (a_index - 1.0) + 0.5 * (prim.5 * prim.5 + prim.6 * prim.6 + prim.7 * prim.7);
     let position = radial_distance(i_num, dx1);
@@ -116,36 +145,6 @@ pub fn flux_x(prim: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64)
     f
 }
 
-//////////////////////////////////////////
-// Defining Spherical Physical Functions
-//////////////////////////////////////////
-
-/// Input:
-/// Output:
-/// Description:
-pub fn radial_distance(i_num: usize, dr: f64) -> f64 {
-    let r = (i_num as f64) * dr;
-    r 
-}
-
-/// Input:
-/// Output:
-/// Description:
-pub fn gravity(m:f64, r: f64, e: f64, dx1: f64) -> f64 {
-    let numerator = -1.0 * m;
-    let denominator = f64::powf(r, 2.0) + (f64::powf(e, 2.0))* (f64::powf(dx1, 2.0)) * f64::exp(-f64::powf(r, 2.0) / (f64::powf(e, 2.0) * f64::powf(dx1, 2.0)));
-    let p = numerator / (denominator.sqrt());
-    p
-}
-
-/// Input:
-/// Output:
-/// Description:
-pub fn cell_volume_sphere(r0: f64, r1: f64) -> f64 {
-    let vol = (4.0 * PI / 3.0) * (f64::powf(r1, 3.0) - f64::powf(r0, 3.0));
-    vol
-}
-
 /// Input:
 /// Output:
 /// Description:
@@ -155,8 +154,10 @@ pub fn source(prim:Cell8, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
     let grav = gravity(m, r, e, dx1);
     let s0 = 0.0;
     let s1 = (-2.0 / r_soft) * prim.0 + prim.1 * grav;
-    let s2 = prim.1 * prim.2 * grav;
-    let s = (s0, s1, 0.0, 0.0, 0.0, 0.0, 0.0, s2);
+    let s2 = (-2.0 / r_soft) * prim.0 + prim.2 * grav;
+    let s3 = (-2.0 / r_soft) * prim.0 + prim.3 * grav;
+    let s7 = prim.1 * prim.2 * grav;
+    let s = (s0, s1, s2, s3, 0.0, 0.0, 0.0, s7);
     s
 }
 
@@ -165,8 +166,13 @@ pub fn source(prim:Cell8, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
 //////////////////////////////////
 
 /// Input:
+///     tup (Cell3): a tuple with three elements
 /// Output:
+///     max_check (f64): the maximum element of the tuple
 /// Description:
+///     This function compares the elements of a tuple with negative infinity
+///     and stores the variable if it is larger than the previous. The function
+///     checks for NaN elements of the tuple.
 pub fn tuple_max(tup: Cell3) -> f64 {
     let arr = [tup.0, tup.1, tup.2];
     let mut max_check: f64 = f64::NEG_INFINITY;
@@ -180,8 +186,13 @@ pub fn tuple_max(tup: Cell3) -> f64 {
 }
 
 /// Input:
+///     tup (Cell3): a tuple with three elements
 /// Output:
+///     min_check (f64): the minimum element of the tuple
 /// Description:
+///     This function compares the elements of a tuple with infinity
+///     and stores the variable if it is smaller than the previous. The 
+///     function checks for NaN elements of the tuple.
 pub fn tuple_min(tup: Cell3) -> f64 {
     let arr = [tup.0, tup.1, tup.2];
     let mut min_check: f64 = f64::INFINITY;
@@ -195,8 +206,14 @@ pub fn tuple_min(tup: Cell3) -> f64 {
 }
 
 /// Input:
+///     num (f64): any number
 /// Output:
+///     sign (f64): either 1.0, -1.0, or 0.0 depending on the 
+///                 sign of the number
 /// Description:
+///     If the input number equals 0 then the out put is 0. If the 
+///     input number is positive then the number equals 1. If the
+///     input number is negative then the output is -1.
 pub fn sgn(num: f64) -> f64 {
     let sign: f64;
     if num > 0.0 {
@@ -211,8 +228,15 @@ pub fn sgn(num: f64) -> f64 {
 }
 
 /// Input:
+///     x (f64): argument 1
+///     y (f64): argument 2
+///     z (f64): argument 3
 /// Output:
+///     mm (f64): the value calculated by the minmod funciton
 /// Description:
+///     Equation: minmod(x,y,z) = 0.25 * |sgn(x) + sgn(y)| * (sgn(x) + sgn(z)) * min(|x|, |y|, |z|)
+///     This equation uses the sgn function and the tuple_min function to calculate the minmod function
+///     of a minmod slope limiter.
 pub fn minmod(x: f64, y: f64, z: f64) -> f64 {
     let mm_1 = (sgn(x) + sgn(y)).abs();
     let mm_2 = sgn(x) + sgn(z);
@@ -222,8 +246,17 @@ pub fn minmod(x: f64, y: f64, z: f64) -> f64 {
 }
 
 /// Input:
+///     ci (f64): desired prim of the ith cell on the grid
+///     cip1 (f64): desired prim of the ith+1 cell on the grid
+///     cip2 (f64): desired prim of the ith+2 cell on the grid
+///     cim1 (f64): desired prim of the ith-1 cell on the grid
+///     left (bool): if this is true the left-biased interface value of the left state will be reconstructed.
 /// Output:
+///     a (f64): the reconstructed prim value
 /// Description:
+///     This function uses the minmod function to reconstruct the primitive variables
+///     of multiple cells using the piecewise linear method in order to get higher order
+///     spacial calculations.
 pub fn plm_reconstruction(ci: f64, cip1: f64, cip2: f64, cim1: f64, left: bool) -> f64 {
     let a: f64;
     if left == true {
@@ -241,8 +274,15 @@ pub fn plm_reconstruction(ci: f64, cip1: f64, cip2: f64, cim1: f64, left: bool) 
 }
 
 /// Input:
+///     prim_l (Cell8): the primitive variables for the left cell
+///     prim_r (Cell8): the primitive variables for the right cell
+///     a_index (f64): the adiabatic index
+///     dx1 (f64): the width of a cell
 /// Output:
+///     dt (f64): the timestep allowed for those cells
 /// Description:
+///     This function uses the sound_speed and tuple_max functions to determine
+///     the timestep satisfied by the Courant-Friedrich-Levy condition.
 pub fn compute_time_step_1d(prim_l: Cell8, prim_r: Cell8, a_index: f64, dx1: f64) -> f64 {
     let cf_l = sound_speed(prim_l, a_index);
     let plus_l = cf_l + prim_l.2;
@@ -275,21 +315,4 @@ pub fn gravity_time_step(m: f64, r: f64, e: f64, dx1: f64) -> f64 {
     } else {
         f64::INFINITY
     }
-}
-
-/// Input:
-/// Output:
-/// Description:
-pub fn hoyle_accretion_rate(m: f64, v_inf: f64, rho_inf: f64) -> f64 {
-    let ra = 2.0 * m / (f64::powf(v_inf, 2.0));
-    let m_dot = PI * f64::powf(ra, 2.0) * rho_inf * v_inf;
-    m_dot
-}
-
-/// Input:
-/// Output:
-/// Description:
-pub fn accretion_rate(r: f64, rho: f64, v: f64) -> f64 {
-    let m_dot = -4.0 * PI * f64::powf(r, 2.0) * rho * v;
-    m_dot
 }

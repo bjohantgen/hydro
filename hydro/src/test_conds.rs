@@ -2,7 +2,7 @@
 // to supplement the "hydro" code.
 //
 // Author: Brayden JoHantgen
-// Last Update: 10/28/2026
+// Last Update: 11/3/2026
 
 //////////////
 // Importing 
@@ -71,15 +71,15 @@ pub fn brio_wu_shock() -> sim_func::InitConds {
 }
 
 // Bondi-Accretion
-pub fn bondi_accretion_state() -> sim_func::InitConds {
+pub fn bondi_accretion_state_3() -> sim_func::InitConds {
     let bondi = sim_func::InitConds{
         adiabatic_index: 5.0 / 3.0,
         discontinuity: 0.0,
         bh_mass: 1.0,
-        softness: 5.0,
-        p: (1.0, 0.0),
+        softness: 4.0,
+        p: (3.0 / 5.0, 0.0),
         rho: (1.0, 0.0),
-        vx1: (-0.6*(5.0/3.0_f64).sqrt(), 0.0), 
+        vx1: (0.0, 0.0), 
         vx2: (0.0, 0.0),
         vx3: (0.0, 0.0),
         bx1: (0.0, 0.0),
