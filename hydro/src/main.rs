@@ -1,7 +1,7 @@
 // This is the main file of the hydro simulation.
 //
 // Author: Brayden JoHantgen
-// Last Update: 11/3/2026
+// Last Update: 11/7/2026
 
 ////////////
 // Imports
@@ -35,7 +35,7 @@ fn main() {
                 cfl: 0.3,
                 tfinal: 5.381,
                 checkpoint: 0.0125,
-                x1_cell: 64,
+                x1_cell: 512,
                 x1_range: (0.0, 1.0),
                 x2_cell: 0,
                 x2_range: (0.0, 0.0),
@@ -43,11 +43,11 @@ fn main() {
                 x3_range: (0.0, 0.0),
     };
 
-    let test_prim = (init_setup.p.0, init_setup.rho.0, init_setup.vx1.0, init_setup.vx2.0, init_setup.vx3.0, init_setup.bx1.0, init_setup.bx2.0, init_setup.bx3.0);
-    let test_value = math_func::time_unit(init_setup.bh_mass, init_setup.adiabatic_index, init_setup.p.0, init_setup.rho.0);
-    println!("{:?}", test_value);
+    //let test_prim = (init_setup.p.0, init_setup.rho.0, init_setup.vx1.0, init_setup.vx2.0, init_setup.vx3.0, init_setup.bx1.0, init_setup.bx2.0, init_setup.bx3.0);
+    //let test_value = math_func::time_unit(init_setup.bh_mass, init_setup.adiabatic_index, init_setup.p.0, init_setup.rho.0);
+    //println!("{:?}", test_value);
 
-    /*
+    
     // Simulation Prerequisites
     let before = Instant::now();
 
@@ -96,5 +96,5 @@ fn main() {
     println!("The number of timesteps: {:?}", time_step_count);
     println!("The runtime in seconds: {:?}", runtime);
     println!("The performance in zones per second: {:.2?}", performance);
-   */ 
+   
 }

@@ -72,7 +72,7 @@ pub type Cell3 = (f64, f64, f64);
 //////////////////////////////
 // One Dimensional Functions
 //////////////////////////////
-/* 
+ 
 /// Input:
 ///     init_conds (&InitConds): the initial conditions of the simulation
 ///     drive (&Driver): the simulation parameters
@@ -653,4 +653,3 @@ pub fn write_checkpoint(prims: &Primitives, drive: &Driver, init_setup: &InitCon
     
     Ok(())
 }
-*/

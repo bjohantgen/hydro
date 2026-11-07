@@ -1,7 +1,7 @@
 // This file is full of functions to supplement the "hydro" code.
 //
 // Author: Brayden JoHantgen
-// Last Update: 11/6/2026
+// Last Update: 11/7/2026
 
 ////////////
 // Imports
@@ -89,14 +89,21 @@ pub fn time_unit(m: f64, a_index: f64, p_infinity: f64, rho_infinity: f64) -> f6
 }
 
 /// Input:
+///     i_num (usize): the index number of the cell
+///     dr (f64): the width of a cell radially
 /// Output:
+///     r (f64): the radial distance of the cell
 /// Description:
+///     This function takes the location of a cell to calculate its
+///     radial distance from the left most edge of the simulation.
+///     Currently this function is only 1D.
 pub fn radial_distance(i_num: usize, dr: f64) -> f64 {
     let r = (i_num as f64) * dr;
     r 
 }
 
 /// Input:
+///     m (f64): the black hole mass
 /// Output:
 /// Description:
 pub fn gravity(m:f64, r: f64, e: f64, dx1: f64) -> f64 {
@@ -150,12 +157,11 @@ pub fn flux_x(prim: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64)
 /// Description:
 pub fn source(prim:Cell8, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
     let r = radial_distance(i_num, dx1);
-    let r_soft = (r*r + e*e*dx1*dx1).sqrt();
     let grav = gravity(m, r, e, dx1);
     let s0 = 0.0;
-    let s1 = (-2.0 / r_soft) * prim.0 + prim.1 * grav;
-    let s2 = (-2.0 / r_soft) * prim.0 + prim.2 * grav;
-    let s3 = (-2.0 / r_soft) * prim.0 + prim.3 * grav;
+    let s1 = (-2.0 / r) * prim.0 + prim.1 * grav;
+    let s2 = 0.0;
+    let s3 = 0.0;
     let s7 = prim.1 * prim.2 * grav;
     let s = (s0, s1, s2, s3, 0.0, 0.0, 0.0, s7);
     s
