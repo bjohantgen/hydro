@@ -29,9 +29,9 @@ fn main() {
 
     let drive = sim_func::Driver{
                 cfl: 0.3,
-                tfinal: 5.381,
+                tfinal: 10.001,
                 checkpoint: 0.0125,
-                x1_cell: 16,//512,
+                x1_cell: 512,
                 x1_range: (0.0, 1.0),
                 x2_cell: 0,
                 x2_range: (0.0, 0.0),
@@ -57,7 +57,7 @@ fn main() {
     let mut cons: sim_func::Conserved;
     let mut dt: f64;
     
-    let _ = sim_func::write_checkpoint(&prims, &init_setup, &drive, t, check_count);
+    let _ = sim_func::write_checkpoint(&prims, &drive, t, check_count);
     check_count += 1;
 
     // Running the Simulation 
@@ -74,7 +74,7 @@ fn main() {
         time_step_count += 1.0;
 
         if t >= t_checkpoint {
-            let _ = sim_func::write_checkpoint(&prims, &init_setup, &drive, t, check_count);
+            let _ = sim_func::write_checkpoint(&prims, &drive, t, check_count);
             t_checkpoint += drive.checkpoint;
             check_count += 1;
         }

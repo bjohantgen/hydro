@@ -113,7 +113,7 @@ pub fn internal_energy(prim: Cell5, a_ind: f64) -> f64 {
 ///     This function solves for the distance from the leftmost edge of
 ///     a one-dimensional grid. There is no error checking.
 pub fn distance(i_num: usize, delta: f64) -> f64 {
-    let r = (i_num as f64) * delta;
+    let r = (i_num as f64 - 1.5) * delta;
     r
 }
 

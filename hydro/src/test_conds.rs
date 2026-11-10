@@ -78,9 +78,9 @@ pub fn bondi_accretion_state_5() -> sim_func::InitConds {
     let bondi = sim_func::InitConds{
         adiabatic_index: 5.0 / 3.0,
         discontinuity: 0.0,
-        bh_mass: 0.5,
-        softness: 5.0,
-        length: 64.0,
+        bh_mass: 1.0,
+        softness: 2.0,
+        length: 16.0,
         p: (3.0 / 5.0, 0.0),
         rho: (1.0, 0.0),
         v1: (0.0, 0.0), 

@@ -113,8 +113,8 @@ pub fn init_prims(init_conds: &InitConds, drive: &Driver) -> Primitives {
 /// Description:
 ///     This function calculates the width of a cell using the length
 ///     and cell number given by the Driver construct.
-pub fn cell_width(init_conds: &InitConds, drive: &Driver) -> f64 {
-    let delta = init_conds.length / (drive.x1_cell as f64);
+pub fn cell_width(drive: &Driver) -> f64 {
+    let delta = (drive.x1_range.1 - drive.x1_range.0) / drive.x1_cell as f64;
     delta
 }
 
@@ -211,7 +211,7 @@ pub fn prim_to_con(prim: Cell5, a_ind: f64, m_bh: f64, i_num: usize, s: f64, del
 pub fn cons_from_prims(prims: &Primitives, init_conds: &InitConds, drive: &Driver) -> Conserved {
     let n = prims.p.len() as usize;
 
-    let delta = cell_width(init_conds, drive);
+    let delta = cell_width(drive);
 
     let mut cons_rho = vec![0.0; n];
     let mut cons_m1 = vec![0.0; n];
@@ -285,7 +285,7 @@ pub fn con_to_prim(con: Cell5, a_ind: f64, m_bh: f64, i_num: usize, s: f64, delt
 pub fn prims_from_cons(cons: &Conserved, init_conds: &InitConds, drive: &Driver) -> Primitives {
     let n = cons.rho.len() as usize;
 
-    let delta = cell_width(init_conds, drive);
+    let delta = cell_width(drive);
 
     let mut prims_p = vec![0.0; n];
     let mut prims_rho = vec![0.0; n];
@@ -384,7 +384,7 @@ pub fn godonov(prims: &Primitives, init_conds: &InitConds, drive: &Driver) -> Ve
     let n = prims.p.len() as usize;
     let mut go = vec![(0.0, 0.0, 0.0, 0.0, 0.0); n-1];
 
-    let delta = cell_width(init_conds, drive);
+    let delta = cell_width(drive);
 
     for i in 1..(n-2) {
         go[i] = hll(cell_loc(prims, i-1), cell_loc(prims, i), cell_loc(prims, i+1), cell_loc(prims, i+2), init_conds.adiabatic_index, init_conds.bh_mass, i, i+1, init_conds.softness, delta);
@@ -404,7 +404,7 @@ pub fn godonov(prims: &Primitives, init_conds: &InitConds, drive: &Driver) -> Ve
 pub fn l_function(prims: &Primitives, init_conds: &InitConds, drive: &Driver) -> Conserved {
     let n = prims.p.len() as usize;
 
-    let delta = cell_width(init_conds, drive);
+    let delta = cell_width(drive);
 
     let mut l_rho = vec![0.0; n];
     let mut l_m1 = vec![0.0; n];
@@ -422,15 +422,24 @@ pub fn l_function(prims: &Primitives, init_conds: &InitConds, drive: &Driver) ->
         l_e[i] = 0.0;
     }
 
+    let x_min = drive.x1_range.0;
     for i in 2..(n-2) {
-        let p_fill = (prims.p[i], prims.rho[i], prims.v1[i], prims.v2[i], prims.v3[i]);
-        let s = math_func::source(p_fill, init_conds.bh_mass, i, init_conds.softness, delta);
+        // active cell j = i-2 spans [x_min + j*delta, x_min + (j+1)*delta]
+        let r_l = x_min + (i as f64 - 2.0) * delta;
+        let r_r = r_l + delta;
+        let r_c = r_l + 0.5 * delta;
+        let a_l = r_l * r_l;
+        let a_r = r_r * r_r;
+        let vol = (r_r.powi(3) - r_l.powi(3)) / 3.0;
 
-        l_rho[i] = s.0 - (f_vec[i].0 - f_vec[i-1].0) / delta;
-        l_m1[i] = s.1 - (f_vec[i].1 - f_vec[i-1].1) / delta;
-        l_m2[i] = s.2 - (f_vec[i].2 - f_vec[i-1].2) / delta;
-        l_m3[i] = s.3 - (f_vec[i].3 - f_vec[i-1].3) / delta;
-        l_e[i] = s.4 - (f_vec[i].4 - f_vec[i-1].4) / delta;
+        let p_fill = (prims.p[i], prims.rho[i], prims.v1[i], prims.v2[i], prims.v3[i]);
+        let s = math_func::source_at(p_fill, init_conds.bh_mass, r_c, init_conds.softness, delta);
+
+        l_rho[i] = s.0 - (a_r * f_vec[i].0 - a_l * f_vec[i-1].0) / vol;
+        l_m1[i]  = s.1 - (a_r * f_vec[i].1 - a_l * f_vec[i-1].1) / vol;
+        l_m2[i]  = s.2 - (a_r * f_vec[i].2 - a_l * f_vec[i-1].2) / vol;
+        l_m3[i]  = s.3 - (a_r * f_vec[i].3 - a_l * f_vec[i-1].3) / vol;
+        l_e[i]   = s.4 - (a_r * f_vec[i].4 - a_l * f_vec[i-1].4) / vol;
     }
 
     let l_vec = Conserved{
@@ -558,7 +567,7 @@ pub fn determine_t_step(prims: &Primitives, init_conds: &InitConds, drive: &Driv
     let mut dt = f64::INFINITY;
     let n = prims.p.len();
 
-    let delta = cell_width(init_conds, drive);
+    let delta = cell_width(drive);
 
         for i in 1..(n - 2) {
             let prim_fill_1 = (prims.p[i], prims.rho[i], prims.v1[i], prims.v2[i], prims.v3[i]);
@@ -591,7 +600,6 @@ pub fn determine_t_step(prims: &Primitives, init_conds: &InitConds, drive: &Driv
 
 /// Input:
 ///     prims (&Primitives): the grid containing all the primitive variables for each cell
-///     init_conds (&InitConds): the initial conditions of the simulation
 ///     drive (&Driver): the simulation parameters
 ///     t (f64): the time of the checkpoint
 ///     check_count (i64): the chcekpoint number
@@ -599,7 +607,7 @@ pub fn determine_t_step(prims: &Primitives, init_conds: &InitConds, drive: &Driv
 ///     A file containing the recorded values
 /// Description:
 ///     This function writes the number of cells, grid range, and all primitive variables into txt files for plotting.
-pub fn write_checkpoint(prims: &Primitives, init_setup: &InitConds, drive: &Driver, t: f64, check_count: i64) -> Result<(), Box<dyn std::error::Error>> {
+pub fn write_checkpoint(prims: &Primitives, drive: &Driver, t: f64, check_count: i64) -> Result<(), Box<dyn std::error::Error>> {
     let file_num = check_count.to_string();
     let file_type = ".txt".to_string();
     let file_name = format!("{}{}", file_num, file_type);
