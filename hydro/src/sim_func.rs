@@ -350,14 +350,14 @@ pub fn hll(prim_1: Cell5, prim_2: Cell5, prim_3: Cell5, prim_4: Cell5, a_ind: f6
     let cf_l = math_func::sound_speed(prim_l, a_ind);
     let plus_l = v1_l + cf_l;
     let minus_l = v1_l - cf_l;
-    let u_l = prim_to_con(prim_l, a_ind, m, i_num1, s, delta);
-    let f_l = math_func::flux(prim_l, a_ind, m, i_num1, s, delta);
+    let u_l = prim_to_con(prim_l, a_ind, m_bh, i_num1, s, delta);
+    let f_l = math_func::flux(prim_l, a_ind, m_bh, i_num1, s, delta);
 
     let cf_r = math_func::sound_speed(prim_r, a_ind);
-    let plus_r = vx1_r + cf_r;
-    let minus_r = vx1_r - cf_r;
-    let u_r = prim_to_con(prim_r, a_ind, m, i_num2, s, delta);
-    let f_r = math_func::flux(prim_r, a_ind, m, i_num2, s, delta);
+    let plus_r = v1_r + cf_r;
+    let minus_r = v1_r - cf_r;
+    let u_r = prim_to_con(prim_r, a_ind, m_bh, i_num2, s, delta);
+    let f_r = math_func::flux(prim_r, a_ind, m_bh, i_num2, s, delta);
 
     let a_plus = math_func::tuple_max((0.0, plus_l, plus_r));
     let a_minus = math_func::tuple_max((0.0, -minus_l, -minus_r));
@@ -387,7 +387,7 @@ pub fn godonov(prims: &Primitives, init_conds: &InitConds, drive: &Driver) -> Ve
     let delta = cell_width(init_conds, drive);
 
     for i in 1..(n-2) {
-        go[i] = hll_1d(cell_loc(prims, i-1), cell_loc(prims, i), cell_loc(prims, i+1), cell_loc(prims, i+2), init_conds.adiabatic_index, init_conds.bh_mass, i, i+1, init_conds.softness, delta);
+        go[i] = hll(cell_loc(prims, i-1), cell_loc(prims, i), cell_loc(prims, i+1), cell_loc(prims, i+2), init_conds.adiabatic_index, init_conds.bh_mass, i, i+1, init_conds.softness, delta);
     }
     go
 }
@@ -430,7 +430,7 @@ pub fn l_function(prims: &Primitives, init_conds: &InitConds, drive: &Driver) ->
         l_m1[i] = s.1 - (f_vec[i].1 - f_vec[i-1].1) / delta;
         l_m2[i] = s.2 - (f_vec[i].2 - f_vec[i-1].2) / delta;
         l_m3[i] = s.3 - (f_vec[i].3 - f_vec[i-1].3) / delta;
-        l_e[i] = s.7 - (f_vec[i].7 - f_vec[i-1].7) / delta;
+        l_e[i] = s.4 - (f_vec[i].4 - f_vec[i-1].4) / delta;
     }
 
     let l_vec = Conserved{
