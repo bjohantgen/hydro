@@ -433,7 +433,7 @@ pub fn l_function(prims: &Primitives, init_conds: &InitConds, drive: &Driver) ->
         let vol = (r_r.powi(3) - r_l.powi(3)) / 3.0;
 
         let p_fill = (prims.p[i], prims.rho[i], prims.v1[i], prims.v2[i], prims.v3[i]);
-        let s = math_func::source(p_fill, init_conds.bh_mass, r_c, init_conds.softness, delta);
+        let s = math_func::source(p_fill, init_conds.bh_mass, i, init_conds.softness, delta);
 
         l_rho[i] = s.0 - (a_r * f_vec[i].0 - a_l * f_vec[i-1].0) / vol;
         l_m1[i]  = s.1 - (a_r * f_vec[i].1 - a_l * f_vec[i-1].1) / vol;
