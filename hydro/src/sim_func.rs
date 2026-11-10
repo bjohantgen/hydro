@@ -1,7 +1,7 @@
 // This file is full of functions to supplement the "hydro" code.
 //
 // Author: Brayden JoHantgen
-// Last Update: 11/3/2026
+// Last Update: 11/9/2026
 
 ///////////////////////////////////
 // Importing and Defining Structs
@@ -19,14 +19,15 @@ pub struct InitConds {
     pub discontinuity: f64,
     pub bh_mass: f64,
     pub softness: f64,
+    pub length: f64,
     pub p: (f64, f64),
     pub rho: (f64, f64),
-    pub vx1: (f64, f64),
-    pub vx2: (f64, f64),
-    pub vx3: (f64, f64),
-    pub bx1: (f64, f64),
-    pub bx2: (f64, f64),
-    pub bx3: (f64, f64),
+    pub v1: (f64, f64),
+    pub v2: (f64, f64),
+    pub v3: (f64, f64),
+    pub b1: (f64, f64),
+    pub b2: (f64, f64),
+    pub b3: (f64, f64),
 }
 
 pub struct Driver {
@@ -38,30 +39,24 @@ pub struct Driver {
     pub x2_cell: usize,
     pub x2_range: (f64, f64),
     pub x3_cell: usize,
-    pub x3_range: (f64, f64)
+    pub x3_range: (f64, f64),
 }
 
 #[derive(Debug)]
 pub struct Primitives {
     pub p: Vec<f64>, 
     pub rho: Vec<f64>,  
-    pub vx1: Vec<f64>,   
-    pub vx2: Vec<f64>,   
-    pub vx3: Vec<f64>,   
-    pub bx1: Vec<f64>,    
-    pub bx2: Vec<f64>,     
-    pub bx3: Vec<f64>,   
+    pub v1: Vec<f64>,   
+    pub v2: Vec<f64>,   
+    pub v3: Vec<f64>,  
 }
 
 #[derive(Debug)]
 pub struct Conserved {
     pub rho: Vec<f64>,
-    pub mx1: Vec<f64>,
-    pub mx2: Vec<f64>,
-    pub mx3: Vec<f64>,
-    pub bx1: Vec<f64>,
-    pub bx2: Vec<f64>,
-    pub bx3: Vec<f64>,
+    pub m1: Vec<f64>,
+    pub m2: Vec<f64>,
+    pub m3: Vec<f64>,
     pub e: Vec<f64>,
 }
 
@@ -72,7 +67,7 @@ pub type Cell3 = (f64, f64, f64);
 //////////////////////////////
 // One Dimensional Functions
 //////////////////////////////
- 
+
 /// Input:
 ///     init_conds (&InitConds): the initial conditions of the simulation
 ///     drive (&Driver): the simulation parameters
@@ -80,138 +75,166 @@ pub type Cell3 = (f64, f64, f64);
 ///     prims (Primitives): the primitive variables for each cell in the grid
 /// Description:
 ///     This funciton uses drive to initialize the grid and then uses init_conds
-///     to populate the grid with the initial primitive varibles.
-pub fn init_prims_1d(init_conds: &InitConds, drive: &Driver) -> Primitives {
-    let ncells = drive.x1_cell + 4;
+///     to populate the grid with the initial primitive varibles. The grid is 
+///     uniformly spaced.
+pub fn init_prims(init_conds: &InitConds, drive: &Driver) -> Primitives {
+    let n_cells = drive.x1_cell + 4;
 
-    let mut init_p = vec![0.0; ncells];
-    let mut init_rho = vec![0.0; ncells];
-    let mut init_vx1 = vec![0.0; ncells];
-    let mut init_vx2 = vec![0.0; ncells];
-    let mut init_vx3 = vec![0.0; ncells];
-    let mut init_bx1 = vec![0.0; ncells];
-    let mut init_bx2 = vec![0.0; ncells];
-    let mut init_bx3 = vec![0.0; ncells];
+    let mut init_p = vec![0.0; n_cells];
+    let mut init_rho = vec![0.0; n_cells];
+    let mut init_v1 = vec![0.0; n_cells];
+    let mut init_v2 = vec![0.0; n_cells];
+    let mut init_v3 = vec![0.0; n_cells];
 
-    for i in 0..ncells {
+    for i in 0..n_cells {
         init_p[i] = init_conds.p.0;
         init_rho[i] = init_conds.rho.0;
-        init_vx1[i] = init_conds.vx1.0;
-        init_vx2[i] = init_conds.vx2.0;
-        init_vx3[i] = init_conds.vx3.0;
-        init_bx1[i] = init_conds.bx1.0;
-        init_bx2[i] = init_conds.bx2.0;
-        init_bx3[i] = init_conds.bx3.0;
+        init_v1[i] = init_conds.v1.0;
+        init_v2[i] = init_conds.v2.0;
+        init_v3[i] = init_conds.v3.0;
     }
 
     let prims = Primitives{
         p: init_p,
         rho: init_rho,
-        vx1: init_vx1,
-        vx2: init_vx2,
-        vx3: init_vx3,
-        bx1: init_bx1,
-        bx2: init_bx2,
-        bx3: init_bx3,
+        v1: init_v1,
+        v2: init_v2,
+        v3: init_v3,
     };
 
     prims
 }
 
 /// Input:
+///     init_conds (&InitConds): the initial conditions of the simulation
+///     drive (&Driver): the simulation parameters
+/// Output:
+///     delta (f64): the width of the cell in units of R_b
+/// Description:
+///     This function calculates the width of a cell using the length
+///     and cell number given by the Driver construct.
+pub fn cell_width(init_conds: &InitConds, drive: &Driver) -> f64 {
+    let delta = init_conds.length / (drive.x1_cell as f64);
+    delta
+}
+
+/// Input:
 ///     prims (&Primitives): the grid containing all the primitive variables for each cell
 ///     i (usize): the index of the desired cell
 /// Output:
-///     cell (Cell8): the primitive variables of the desired cell
+///     cell (Cell5): the primitive variables of the desired cell
 /// Description:
 ///     This function takes the index of a cell to return the primitive variables of that cell on the grid
-pub fn cell_loc(prims: &Primitives, i: usize) -> Cell8 {
-    let cell = (prims.p[i], prims.rho[i], prims.vx1[i], prims.vx2[i], prims.vx3[i], prims.bx1[i], prims.bx2[i], prims.bx3[i]);
+pub fn cell_loc(prims: &Primitives, i: usize) -> Cell5 {
+    let cell = (prims.p[i], prims.rho[i], prims.v1[i], prims.v2[i], prims.v3[i]);
     cell
 }
 
 /// Input:
+///     prims (&mut Primitives): the grid containing all the primitive variables for each cell
+///     i_org (usize): the index of the original cell
+///     i_new (usize): the index of the changed cell
 /// Output:
+///     the updated prims 
 /// Description:
-pub fn copy_cell(prims: &mut Primitives, src: usize, dst: usize) {
-    prims.p[dst] = prims.p[src];
-    prims.rho[dst] = prims.rho[src];
-    prims.vx1[dst] = prims.vx1[src];
-    prims.vx2[dst] = prims.vx2[src];
-    prims.vx3[dst] = prims.vx3[src];
-    prims.bx1[dst] = prims.bx1[src];
-    prims.bx2[dst] = prims.bx2[src];
-    prims.bx3[dst] = prims.bx3[src];
+///     This function takes the primitive variables on the grid and replaces a
+///     desired index with a different chosen index.
+pub fn copy_cell(prims: &mut Primitives, i_org: usize, i_new: usize) {
+    prims.p[i_new] = prims.p[i_org];
+    prims.rho[i_new] = prims.rho[i_org];
+    prims.v1[i_new] = prims.v1[i_org];
+    prims.v2[i_new] = prims.v2[i_org];
+    prims.v3[i_new] = prims.v3[i_org];
 }
 
 /// Input:
+///     prims (&mut Primitives): the grid containing all the primitive variables for each cell
+///     init_conds (&InitConds): the initial conditions of the simulation
 /// Output:
+///     the updated prims with adjusted boundary conditions
 /// Description:
-pub fn apply_bcs_1d(prims: &mut Primitives, init_conds: &InitConds, drive: &Driver) {
-    let n = prims.p.len();
-    let first_active = 2;
+///     This function takes the prims grid and adds the boundary conditiond to the ghost cells on either
+///     side of the grid. The left bounday is that of a black hole and requires the gas to fall through.
+///     The right boundary pulls from an infinite gas reservoir with the same parameters as the initial conditions.
+pub fn boundary_conds(prims: &mut Primitives, init_conds: &InitConds) {
+    let n_cells = prims.p.len();
+    let inner_active = 2;
 
-    copy_cell(prims, first_active, 1);
-    copy_cell(prims, first_active, 0);
- 
-    for &dst in &[n - 2, n - 1] {
-        prims.p[dst] = init_conds.p.0;
-        prims.rho[dst] = init_conds.rho.0;
-        prims.vx1[dst] = init_conds.vx1.0;
-        prims.vx2[dst] = init_conds.vx2.0;
-        prims.vx3[dst] = init_conds.vx3.0;
-        prims.bx1[dst] = init_conds.bx1.0;
-        prims.bx2[dst] = init_conds.bx2.0;
-        prims.bx3[dst] = init_conds.bx3.0;
+    // left boundary
+    copy_cell(prims, inner_active, 1);
+    copy_cell(prims, inner_active, 0);
+
+    // right boundary
+    for &i in &[n_cells - 2, n_cells - 1] {
+        prims.p[i] = init_conds.p.0;
+        prims.rho[i] = init_conds.rho.0;
+        prims.v1[i] = init_conds.v1.0;
+        prims.v2[i] = init_conds.v2.0;
+        prims.v3[i] = init_conds.v3.0;
     }
 }
 
 /// Input:
+///     prim (Cell5): the primitive variables of a cell
+///     a_ind (f64): the adiabatic index of the gas
+///     m_bh (f64): the mass of the black hole
+///     i_num (usize): the index of the cell
+///     s (f64): the softening parameter
+///     delta (f64): the width of a cell
 /// Output:
+///     con (Cell5): the conserved variables of the cell
 /// Description:
-pub fn prim_to_cons_1d(prim: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
-    let energy = math_func::total_energy_cart(prim, a_index, i_num, dx1, m, e);
-    let con = (prim.1, prim.1 * prim.2, prim.1 * prim.3, prim.1 * prim.4, prim.5, prim.6, prim.7, energy);
+///     This function uses the total energy function to construct the conserved variables
+///     using the primitive variables.
+pub fn prim_to_con(prim: Cell5, a_ind: f64, m_bh: f64, i_num: usize, s: f64, delta: f64) -> Cell5 {
+    let energy = math_func::total_energy(prim, a_ind, m_bh, i_num, s, delta);
+
+    let u0 = prim.1;
+    let u1 = prim.1 * prim.2;
+    let u2 = prim.1 * prim.3;
+    let u3 = prim.1 * prim.4;
+    let u4 = energy;
+
+    let con = (u0, u1, u2, u3, u4);
     con
 }
 
 /// Input:
+///     prims (&Primitives): the grid containing all the primitive variables for each cell
+///     init_conds (&InitConds): the initial conditions of the simulation
+///     drive (&Driver): the simulation parameters
 /// Output:
+///     cons (Conserved): the conserved variables on the grid.
 /// Description:
-pub fn cons_from_prim_1d(prims: &Primitives, a_index: f64, dx1: f64, m: f64, e: f64) -> Conserved {
-    let size = prims.p.len() as usize;
+///     This function uses the cell_width and prim_to_con functions to construct the conserved variables
+///     on the simulation grid.
+pub fn cons_from_prims(prims: &Primitives, init_conds: &InitConds, drive: &Driver) -> Conserved {
+    let n = prims.p.len() as usize;
 
-    let mut cons_rho = vec![0.0; size];
-    let mut cons_mx1 = vec![0.0; size];
-    let mut cons_mx2 = vec![0.0; size];
-    let mut cons_mx3 = vec![0.0; size];
-    let mut cons_bx1 = vec![0.0; size];
-    let mut cons_bx2 = vec![0.0; size];
-    let mut cons_bx3 = vec![0.0; size];
-    let mut cons_e = vec![0.0; size];
+    let delta = cell_width(init_conds, drive);
 
-    for i in 0..size {
-        let prim_fill = (prims.p[i], prims.rho[i], prims.vx1[i], prims.vx2[i], prims.vx3[i], prims.bx1[i], prims.bx2[i], prims.bx3[i]);
-        let con_result = prim_to_cons_1d(prim_fill, a_index, i, dx1, m, e);
+    let mut cons_rho = vec![0.0; n];
+    let mut cons_m1 = vec![0.0; n];
+    let mut cons_m2 = vec![0.0; n];
+    let mut cons_m3 = vec![0.0; n];
+    let mut cons_e = vec![0.0; n];
+
+    for i in 0..n {
+        let prim_fill = (prims.p[i], prims.rho[i], prims.v1[i], prims.v2[i], prims.v3[i]);
+        let con_result = prim_to_con(prim_fill, init_conds.adiabatic_index, init_conds.bh_mass, i, init_conds.softness, delta);
 
         cons_rho[i] = con_result.0;
-        cons_mx1[i] = con_result.1;
-        cons_mx2[i] = con_result.2;
-        cons_mx3[i] = con_result.3;
-        cons_bx1[i] = con_result.4;
-        cons_bx2[i] = con_result.5;
-        cons_bx3[i] = con_result.6;
-        cons_e[i] = con_result.7;
+        cons_m1[i] = con_result.1;
+        cons_m2[i] = con_result.2;
+        cons_m3[i] = con_result.3;
+        cons_e[i] = con_result.4;
     }
 
     let cons = Conserved{
         rho: cons_rho,
-        mx1: cons_mx1,
-        mx2: cons_mx2,
-        mx3: cons_mx3,
-        bx1: cons_bx1,
-        bx2: cons_bx2,
-        bx3: cons_bx3,
+        m1: cons_m1,
+        m2: cons_m2,
+        m3: cons_m3,
         e: cons_e,
     };
 
@@ -219,100 +242,122 @@ pub fn cons_from_prim_1d(prims: &Primitives, a_index: f64, dx1: f64, m: f64, e: 
 }
 
 /// Input:
+///     con (Cell5): the conserved variables of a cell
+///     a_ind (f64): the adiabatic index of the gas
+///     m_bh (f64): the mass of the black hole
+///     i_num (usize): the index of the cell
+///     s (f64): the softening parameter
+///     delta (f64): the width of a cell
 /// Output:
+///     prim (Cell5): the primitive variables of a cell
 /// Description:
-pub fn cons_to_prim_1d(con: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
+///     This function uses the distance and grav_potential functions to transform the conserved variables
+///     to the primitive variables. There is a pressure and density floor implemented to prevent these 
+///     values from being negative.
+pub fn con_to_prim(con: Cell5, a_ind: f64, m_bh: f64, i_num: usize, s: f64, delta: f64) -> Cell5 {
     let rho = con.0.max(1e-8);
-    let vx1 = con.1 / rho;
-    let vx2 = con.2 / rho;
-    let vx3 = con.3 / rho;
-    let position = math_func::radial_distance(i_num, dx1);
-    let grav = math_func::gravity(m, position, e, dx1);
-    let p_raw = (a_index - 1.0) * (con.7 - rho * grav
-        - 0.5 * (rho * (vx1*vx1 + vx2*vx2 + vx3*vx3) + (con.4*con.4 + con.5*con.5 + con.6*con.6)));
-    let p = p_raw.max(1e-8);
-    (p, rho, vx1, vx2, vx3, con.4, con.5, con.6)
+
+    let v1 = con.1 / rho;
+    let v2 = con.2 / rho;
+    let v3 = con.3 / rho;
+
+    let r = math_func::distance(i_num, delta);
+    let phi = math_func::grav_potential(m_bh, r, s, delta);
+
+    let v_square = v1 * v1 + v2 * v2 + v3 * v3;
+
+    let p_check = (a_ind - 1.0) * (con.4 - rho * phi - 0.5 * rho * v_square);
+    let p = p_check.max(1e-8);
+
+    let prim = (p, rho, v1, v2, v3);
+    prim
 }
 
 /// Input:
+///     cons (&Conserved): the conserved variables on the grid.
+///     init_conds (&InitConds): the initial conditions of the simulation
+///     drive (&Driver): the simulation parameters
 /// Output:
+///     prims (Primitives): the grid containing all the primitive variables for each cell
 /// Description:
-pub fn prim_from_cons_1d(cons: &Conserved, a_index: f64, dx1: f64, m: f64, e: f64) -> Primitives {
-    let size = cons.rho.len() as usize;
+///     This function uses the cell width function and the con_to_prim function to transform the
+///     conserved grid to the primitive grid.
+pub fn prims_from_cons(cons: &Conserved, init_conds: &InitConds, drive: &Driver) -> Primitives {
+    let n = cons.rho.len() as usize;
 
-    let mut prims_p = vec![0.0; size];
-    let mut prims_rho = vec![0.0; size];
-    let mut prims_vx1 = vec![0.0; size];
-    let mut prims_vx2 = vec![0.0; size];
-    let mut prims_vx3 = vec![0.0; size];
-    let mut prims_bx1 = vec![0.0; size];
-    let mut prims_bx2 = vec![0.0; size];
-    let mut prims_bx3 = vec![0.0; size];
+    let delta = cell_width(init_conds, drive);
 
-    for i in 0..size {
-        let con_fill = (cons.rho[i], cons.mx1[i], cons.mx2[i], cons.mx3[i], cons.bx1[i], cons.bx2[i], cons.bx3[i], cons.e[i]);
-        let prim_result = cons_to_prim_1d(con_fill, a_index, i, dx1, m, e);
+    let mut prims_p = vec![0.0; n];
+    let mut prims_rho = vec![0.0; n];
+    let mut prims_v1 = vec![0.0; n];
+    let mut prims_v2 = vec![0.0; n];
+    let mut prims_v3 = vec![0.0; n];
+
+    for i in 0..n {
+        let con_fill = (cons.rho[i], cons.m1[i], cons.m2[i], cons.m3[i], cons.e[i]);
+        let prim_result = con_to_prim(con_fill, init_conds.adiabatic_index, init_conds.bh_mass, i, init_conds.softness, delta);
 
         prims_p[i] = prim_result.0;
         prims_rho[i] = prim_result.1;
-        prims_vx1[i] = prim_result.2;
-        prims_vx2[i] = prim_result.3;
-        prims_vx3[i] = prim_result.4;
-        prims_bx1[i] = prim_result.5;
-        prims_bx2[i] = prim_result.6;
-        prims_bx3[i] = prim_result.7;
+        prims_v1[i] = prim_result.2;
+        prims_v2[i] = prim_result.3;
+        prims_v3[i] = prim_result.4;
     }
 
     let prims = Primitives{
         p: prims_p,
         rho: prims_rho,
-        vx1: prims_vx1,
-        vx2: prims_vx2,
-        vx3: prims_vx3,
-        bx1: prims_bx1,
-        bx2: prims_bx2,
-        bx3: prims_bx3,
+        v1: prims_v1,
+        v2: prims_v2,
+        v3: prims_v3,
     };
     
     prims
 }
 
 /// Input:
+///     prim_1 (Cell5): the primitive variables in position 1
+///     prim_2 (Cell5): the primitive variables in position 2
+///     prim_3 (Cell5): the primitive variables in position 3
+///     prim_4 (Cell5): the primitive variables in position 4
+///     a_ind (f64): the adiabatic index of the gas
+///     m_bh (f64): the mass of the black hole
+///     i_num1 (usize): the index of cell 2
+///     i_num2 (usize): the index of cell 3
+///     s (f64): the softening parameter
+///     delta (f64): the width of a cell
 /// Output:
+///     hll (Cell5): the hll plm reconstructed hll flux between cells 2 and 3
 /// Description:
-pub fn hll_1d(prim_1: Cell8, prim_2: Cell8, prim_3: Cell8, prim_4: Cell8, a_index: f64, i_num1: usize, i_num2: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
+///     This function uses the plm_reconstruction, sound_speed, prim_to_con, flux, and tuple max functions
+///     to calculate the hll flux.
+pub fn hll(prim_1: Cell5, prim_2: Cell5, prim_3: Cell5, prim_4: Cell5, a_ind: f64, m_bh: f64, i_num1: usize, i_num2: usize, s: f64, delta: f64) -> Cell5 {
     let p_l = math_func::plm_reconstruction(prim_2.0, prim_3.0, prim_4.0, prim_1.0, true);
     let rho_l = math_func::plm_reconstruction(prim_2.1, prim_3.1, prim_4.1, prim_1.1, true);
-    let vx1_l = math_func::plm_reconstruction(prim_2.2, prim_3.2, prim_4.2, prim_1.2, true);
-    let vx2_l = math_func::plm_reconstruction(prim_2.3, prim_3.3, prim_4.3, prim_1.3, true);
-    let vx3_l = math_func::plm_reconstruction(prim_2.4, prim_3.4, prim_4.4, prim_1.4, true);
-    let bx1_l = math_func::plm_reconstruction(prim_2.5, prim_3.5, prim_4.5, prim_1.5, true);
-    let bx2_l = math_func::plm_reconstruction(prim_2.6, prim_3.6, prim_4.6, prim_1.6, true);
-    let bx3_l = math_func::plm_reconstruction(prim_2.7, prim_3.7, prim_4.7, prim_1.7, true);
+    let v1_l = math_func::plm_reconstruction(prim_2.2, prim_3.2, prim_4.2, prim_1.2, true);
+    let v2_l = math_func::plm_reconstruction(prim_2.3, prim_3.3, prim_4.3, prim_1.3, true);
+    let v3_l = math_func::plm_reconstruction(prim_2.4, prim_3.4, prim_4.4, prim_1.4, true);
 
     let p_r = math_func::plm_reconstruction(prim_2.0, prim_3.0, prim_4.0, prim_1.0, false);
     let rho_r = math_func::plm_reconstruction(prim_2.1, prim_3.1, prim_4.1, prim_1.1, false);
-    let vx1_r = math_func::plm_reconstruction(prim_2.2, prim_3.2, prim_4.2, prim_1.2, false);
-    let vx2_r = math_func::plm_reconstruction(prim_2.3, prim_3.3, prim_4.3, prim_1.3, false);
-    let vx3_r = math_func::plm_reconstruction(prim_2.4, prim_3.4, prim_4.4, prim_1.4, false);
-    let bx1_r = math_func::plm_reconstruction(prim_2.5, prim_3.5, prim_4.5, prim_1.5, false);
-    let bx2_r = math_func::plm_reconstruction(prim_2.6, prim_3.6, prim_4.6, prim_1.6, false);
-    let bx3_r = math_func::plm_reconstruction(prim_2.7, prim_3.7, prim_4.7, prim_1.7, false);
+    let v1_r = math_func::plm_reconstruction(prim_2.2, prim_3.2, prim_4.2, prim_1.2, false);
+    let v2_r = math_func::plm_reconstruction(prim_2.3, prim_3.3, prim_4.3, prim_1.3, false);
+    let v3_r = math_func::plm_reconstruction(prim_2.4, prim_3.4, prim_4.4, prim_1.4, false);
 
-    let prim_l = (p_l, rho_l, vx1_l, vx2_l, vx3_l, bx1_l, bx2_l, bx3_l);
-    let prim_r = (p_r, rho_r, vx1_r, vx2_r, vx3_r, bx1_r, bx2_r, bx3_r);
+    let prim_l = (p_l, rho_l, v1_l, v2_l, v3_l);
+    let prim_r = (p_r, rho_r, v1_r, v2_r, v3_r);
 
-    let cf_l = math_func::sound_speed(prim_l, a_index);
-    let plus_l = vx1_l + cf_l;
-    let minus_l = vx1_l - cf_l;
-    let u_l = prim_to_cons_1d(prim_l, a_index, i_num1, dx1, m, e);
-    let f_l = math_func::flux_x(prim_l, a_index, i_num1, dx1, m, e);
+    let cf_l = math_func::sound_speed(prim_l, a_ind);
+    let plus_l = v1_l + cf_l;
+    let minus_l = v1_l - cf_l;
+    let u_l = prim_to_con(prim_l, a_ind, m, i_num1, s, delta);
+    let f_l = math_func::flux(prim_l, a_ind, m, i_num1, s, delta);
 
-    let cf_r = math_func::sound_speed(prim_r, a_index);
+    let cf_r = math_func::sound_speed(prim_r, a_ind);
     let plus_r = vx1_r + cf_r;
     let minus_r = vx1_r - cf_r;
-    let u_r = prim_to_cons_1d(prim_r, a_index, i_num2, dx1, m, e);
-    let f_r = math_func::flux_x(prim_r, a_index, i_num2, dx1, m, e);
+    let u_r = prim_to_con(prim_r, a_ind, m, i_num2, s, delta);
+    let f_r = math_func::flux(prim_r, a_ind, m, i_num2, s, delta);
 
     let a_plus = math_func::tuple_max((0.0, plus_l, plus_r));
     let a_minus = math_func::tuple_max((0.0, -minus_l, -minus_r));
@@ -322,76 +367,77 @@ pub fn hll_1d(prim_1: Cell8, prim_2: Cell8, prim_3: Cell8, prim_4: Cell8, a_inde
     let hll_2 = ((a_plus * f_l.2) + (a_minus * f_r.2) - (a_plus * a_minus * (u_r.2 - u_l.2))) / (a_minus + a_plus);
     let hll_3 = ((a_plus * f_l.3) + (a_minus * f_r.3) - (a_plus * a_minus * (u_r.3 - u_l.3))) / (a_minus + a_plus);
     let hll_4 = ((a_plus * f_l.4) + (a_minus * f_r.4) - (a_plus * a_minus * (u_r.4 - u_l.4))) / (a_minus + a_plus);
-    let hll_5 = ((a_plus * f_l.5) + (a_minus * f_r.5) - (a_plus * a_minus * (u_r.5 - u_l.5))) / (a_minus + a_plus);
-    let hll_6 = ((a_plus * f_l.6) + (a_minus * f_r.6) - (a_plus * a_minus * (u_r.6 - u_l.6))) / (a_minus + a_plus);
-    let hll_7 = ((a_plus * f_l.7) + (a_minus * f_r.7) - (a_plus * a_minus * (u_r.7 - u_l.7))) / (a_minus + a_plus);
-    let hll = (hll_0, hll_1, hll_2, hll_3, hll_4, hll_5, hll_6, hll_7);
+
+    let hll = (hll_0, hll_1, hll_2, hll_3, hll_4);
     hll
 }
 
 /// Input:
+///     prims (&Primitives): the grid containing all the primitive variables for each cell
+///     init_conds (&InitConds): the initial conditions of the simulation
+///     drive (&Driver): the simulation parameters
 /// Output:
+///     go (Vec<Cell5>): the vector of godonov fluxes
 /// Description:
-pub fn godonov_1d(prims: &Primitives, a_index: f64, dx1: f64, m: f64, e: f64) ->  Vec<Cell8> {
-    let size = prims.p.len() as usize;
-    let mut go = vec![(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0); size-1];
+///     This function calculates all of the hll fluxes on the grid.
+pub fn godonov(prims: &Primitives, init_conds: &InitConds, drive: &Driver) -> Vec<Cell5> {
+    let n = prims.p.len() as usize;
+    let mut go = vec![(0.0, 0.0, 0.0, 0.0, 0.0); n-1];
 
-    for i in 1..(size-2) {
-        go[i] = hll_1d(cell_loc(prims, i-1), cell_loc(prims, i), cell_loc(prims, i+1), cell_loc(prims, i+2), a_index, i, i+1, dx1, m, e);
+    let delta = cell_width(init_conds, drive);
+
+    for i in 1..(n-2) {
+        go[i] = hll_1d(cell_loc(prims, i-1), cell_loc(prims, i), cell_loc(prims, i+1), cell_loc(prims, i+2), init_conds.adiabatic_index, init_conds.bh_mass, i, i+1, init_conds.softness, delta);
     }
     go
 }
 
 /// Input:
+///     prims (&Primitives): the grid containing all the primitive variables for each cell
+///     init_conds (&InitConds): the initial conditions of the simulation
+///     drive (&Driver): the simulation parameters
 /// Output:
+///     l_vec (Conserved): this is the l function used to update the conserved variables.
 /// Description:
-pub fn l_function_1d(prims: &Primitives, a_index: f64, dx1: f64, m: f64, e: f64) -> Conserved {
-    let size = prims.p.len() as usize;
+///     This function uses the cell_width, godonov, and source functions to calculate the l_functions
+///     to update the conserved variables.
+pub fn l_function(prims: &Primitives, init_conds: &InitConds, drive: &Driver) -> Conserved {
+    let n = prims.p.len() as usize;
 
-    let mut l_rho = vec![0.0; size];
-    let mut l_mx1 = vec![0.0; size];
-    let mut l_mx2 = vec![0.0; size];
-    let mut l_mx3 = vec![0.0; size];
-    let mut l_bx1 = vec![0.0; size];
-    let mut l_bx2 = vec![0.0; size];
-    let mut l_bx3 = vec![0.0; size];
-    let mut l_e = vec![0.0; size];
+    let delta = cell_width(init_conds, drive);
 
-    let f_vec = godonov_1d(prims, a_index, dx1, m, e);
+    let mut l_rho = vec![0.0; n];
+    let mut l_m1 = vec![0.0; n];
+    let mut l_m2 = vec![0.0; n];
+    let mut l_m3 = vec![0.0; n];
+    let mut l_e = vec![0.0; n];
 
-    for &i in &[0usize, 1, size - 2, size - 1] {
+    let f_vec = godonov(prims, init_conds, drive);
+
+    for &i in &[0usize, 1, n - 2, n - 1] {
         l_rho[i] = 0.0;
-        l_mx1[i] = 0.0;
-        l_mx2[i] = 0.0;
-        l_mx3[i] = 0.0;
-        l_bx1[i] = 0.0;
-        l_bx2[i] = 0.0;
-        l_bx3[i] = 0.0;
+        l_m1[i] = 0.0;
+        l_m2[i] = 0.0;
+        l_m3[i] = 0.0;
         l_e[i] = 0.0;
     }
 
-    for i in 2..(size-2) {
-        let p_fill = (prims.p[i], prims.rho[i], prims.vx1[i], prims.vx2[i], prims.vx3[i], prims.bx1[i], prims.bx2[i], prims.bx3[i]);
-        let s = math_func::source(p_fill, i, dx1, m, e);
+    for i in 2..(n-2) {
+        let p_fill = (prims.p[i], prims.rho[i], prims.v1[i], prims.v2[i], prims.v3[i]);
+        let s = math_func::source(p_fill, init_conds.bh_mass, i, init_conds.softness, delta);
 
-        l_rho[i] = s.0 - (f_vec[i].0 - f_vec[i-1].0) / dx1;
-        l_mx1[i] = s.1 - (f_vec[i].1 - f_vec[i-1].1) / dx1;
-        l_mx2[i] = s.2 - (f_vec[i].2 - f_vec[i-1].2) / dx1;
-        l_mx3[i] = s.3 - (f_vec[i].3 - f_vec[i-1].3) / dx1;
-        l_bx1[i] = s.4 - (f_vec[i].4 - f_vec[i-1].4) / dx1;
-        l_bx2[i] = s.5 - (f_vec[i].5 - f_vec[i-1].5) / dx1;
-        l_bx3[i] = s.6 - (f_vec[i].6 - f_vec[i-1].6) / dx1;
-        l_e[i] = s.7 - (f_vec[i].7 - f_vec[i-1].7) / dx1;
+        l_rho[i] = s.0 - (f_vec[i].0 - f_vec[i-1].0) / delta;
+        l_m1[i] = s.1 - (f_vec[i].1 - f_vec[i-1].1) / delta;
+        l_m2[i] = s.2 - (f_vec[i].2 - f_vec[i-1].2) / delta;
+        l_m3[i] = s.3 - (f_vec[i].3 - f_vec[i-1].3) / delta;
+        l_e[i] = s.7 - (f_vec[i].7 - f_vec[i-1].7) / delta;
     }
 
     let l_vec = Conserved{
         rho: l_rho,
-        mx1: l_mx1,
-        mx2: l_mx2,
-        mx3: l_mx3,
-        bx1: l_bx1,
-        bx2: l_bx2,
-        bx3: l_bx3,
+        m1: l_m1,
+        m2: l_m2,
+        m3: l_m3,
         e: l_e,
     };
 
@@ -399,134 +445,127 @@ pub fn l_function_1d(prims: &Primitives, a_index: f64, dx1: f64, m: f64, e: f64)
 }
 
 /// Input:
+///     prims (&Primitives): the grid containing all the primitive variables for each cell
+///     init_conds (&InitConds): the initial conditions of the simulation
+///     drive (&Driver): the simulation parameters
+///     dt (f64): the size of the timestep
 /// Output:
+///     cons2 (Conserved): the time stepped conserved variable.
 /// Description:
-pub fn rk_step_1d(prims: &Primitives, cons: &Conserved, init_conds: &InitConds, drive: &Driver, a_index: f64, dx1: f64, dt: f64, m: f64, e: f64) -> Conserved {
-    let size = prims.p.len() as usize;
-    let l0 = l_function_1d(prims, a_index, dx1, m, e);
-    
-    let mut con0_rho = vec![0.0; size];
-    let mut con0_mx1 = vec![0.0; size];
-    let mut con0_mx2 = vec![0.0; size];
-    let mut con0_mx3 = vec![0.0; size];
-    let mut con0_bx1 = vec![0.0; size];
-    let mut con0_bx2 = vec![0.0; size];
-    let mut con0_bx3 = vec![0.0; size];
-    let mut con0_e = vec![0.0; size];
+///     This function uses the l_function, prims_from_cons, and boundary_conds functions to advance the
+///     conserved variables through and RK3 timestep.
+pub fn rk_step(prims: &Primitives, cons: &Conserved, init_conds: &InitConds, drive: &Driver, dt: f64) -> Conserved {
+    let n = prims.p.len() as usize;
 
-    for i in 0..size {
+    let l0 = l_function(prims, init_conds, drive);
+    
+    let mut con0_rho = vec![0.0; n];
+    let mut con0_m1 = vec![0.0; n];
+    let mut con0_m2 = vec![0.0; n];
+    let mut con0_m3 = vec![0.0; n];
+    let mut con0_e = vec![0.0; n];
+
+    for i in 0..n {
         con0_rho[i] = cons.rho[i] + dt * l0.rho[i];
-        con0_mx1[i] = cons.mx1[i] + dt * l0.mx1[i];
-        con0_mx2[i] = cons.mx2[i] + dt * l0.mx2[i];
-        con0_mx3[i] = cons.mx3[i] + dt * l0.mx3[i];
-        con0_bx1[i] = cons.bx1[i] + dt * l0.bx1[i];
-        con0_bx2[i] = cons.bx2[i] + dt * l0.bx2[i];
-        con0_bx3[i] = cons.bx3[i] + dt * l0.bx3[i];
+        con0_m1[i] = cons.m1[i] + dt * l0.m1[i];
+        con0_m2[i] = cons.m2[i] + dt * l0.m2[i];
+        con0_m3[i] = cons.m3[i] + dt * l0.m3[i];
         con0_e[i] = cons.e[i] + dt * l0.e[i];
     }
 
     let cons0 = Conserved{
         rho: con0_rho,
-        mx1: con0_mx1, 
-        mx2: con0_mx2,
-        mx3: con0_mx3,
-        bx1: con0_bx1,
-        bx2: con0_bx2,
-        bx3: con0_bx3,
+        m1: con0_m1, 
+        m2: con0_m2,
+        m3: con0_m3,
         e: con0_e,
     };
 
-    let mut prims_1 = prim_from_cons_1d(&cons0, a_index, dx1, m, e);
-    apply_bcs_1d(&mut prims_1, init_conds, drive);
-    let l1 = l_function_1d(&prims_1, a_index, dx1, m, e);
+    let mut prims_1 = prims_from_cons(&cons0, init_conds, drive);
+    boundary_conds(&mut prims_1, init_conds);
 
-    let mut con1_rho = vec![0.0; size];
-    let mut con1_mx1 = vec![0.0; size];
-    let mut con1_mx2 = vec![0.0; size];
-    let mut con1_mx3 = vec![0.0; size];
-    let mut con1_bx1 = vec![0.0; size];
-    let mut con1_bx2 = vec![0.0; size];
-    let mut con1_bx3 = vec![0.0; size];
-    let mut con1_e = vec![0.0; size];
+    let l1 = l_function(&prims_1, init_conds, drive);
+
+    let mut con1_rho = vec![0.0; n];
+    let mut con1_m1 = vec![0.0; n];
+    let mut con1_m2 = vec![0.0; n];
+    let mut con1_m3 = vec![0.0; n];
+    let mut con1_e = vec![0.0; n];
 
     let dt25 = 0.25 * dt;
 
-    for i in 0..size{
+    for i in 0..n{
         con1_rho[i] = 0.75 * cons.rho[i] + 0.25 * cons0.rho[i] + dt25 * l1.rho[i];
-        con1_mx1[i] = 0.75 * cons.mx1[i] + 0.25 * cons0.mx1[i] + dt25 * l1.mx1[i];
-        con1_mx2[i] = 0.75 * cons.mx2[i] + 0.25 * cons0.mx2[i] + dt25 * l1.mx2[i];
-        con1_mx3[i] = 0.75 * cons.mx3[i] + 0.25 * cons0.mx3[i] + dt25 * l1.mx3[i];
-        con1_bx1[i] = 0.75 * cons.bx1[i] + 0.25 * cons0.bx1[i] + dt25 * l1.bx1[i];
-        con1_bx2[i] = 0.75 * cons.bx2[i] + 0.25 * cons0.bx2[i] + dt25 * l1.bx2[i];
-        con1_bx3[i] = 0.75 * cons.bx3[i] + 0.25 * cons0.bx3[i] + dt25 * l1.bx3[i];
+        con1_m1[i] = 0.75 * cons.m1[i] + 0.25 * cons0.m1[i] + dt25 * l1.m1[i];
+        con1_m2[i] = 0.75 * cons.m2[i] + 0.25 * cons0.m2[i] + dt25 * l1.m2[i];
+        con1_m3[i] = 0.75 * cons.m3[i] + 0.25 * cons0.m3[i] + dt25 * l1.m3[i];
         con1_e[i] = 0.75 * cons.e[i] + 0.25 * cons0.e[i] + dt25 * l1.e[i];
     }
 
     let cons1 = Conserved{
         rho: con1_rho,
-        mx1: con1_mx1, 
-        mx2: con1_mx2,
-        mx3: con1_mx3,
-        bx1: con1_bx1,
-        bx2: con1_bx2,
-        bx3: con1_bx3,
+        m1: con1_m1, 
+        m2: con1_m2,
+        m3: con1_m3,
         e: con1_e,
     };
 
-    let mut prims_2 = prim_from_cons_1d(&cons1, a_index, dx1, m, e);
-    apply_bcs_1d(&mut prims_2, init_conds, drive);
-    let l2 = l_function_1d(&prims_2, a_index, dx1, m, e);
+    let mut prims_2 = prims_from_cons(&cons1, init_conds, drive);
+    boundary_conds(&mut prims_2, init_conds);
 
-    let mut con2_rho = vec![0.0; size];
-    let mut con2_mx1 = vec![0.0; size];
-    let mut con2_mx2 = vec![0.0; size];
-    let mut con2_mx3 = vec![0.0; size];
-    let mut con2_bx1 = vec![0.0; size];
-    let mut con2_bx2 = vec![0.0; size];
-    let mut con2_bx3 = vec![0.0; size];
-    let mut con2_e = vec![0.0; size];
+    let l2 = l_function(&prims_2, init_conds, drive);
+
+    let mut con2_rho = vec![0.0; n];
+    let mut con2_m1 = vec![0.0; n];
+    let mut con2_m2 = vec![0.0; n];
+    let mut con2_m3 = vec![0.0; n];
+    let mut con2_e = vec![0.0; n];
 
     let dt66 = (2.0 / 3.0) * dt;
     let c33 = 1.0 / 3.0;
     let c66 = 2.0 / 3.0;
 
-    for i in 0..size{
+    for i in 0..n{
         con2_rho[i] = c33 * cons.rho[i] + c66 * cons1.rho[i] + dt66 * l2.rho[i];
-        con2_mx1[i] = c33 * cons.mx1[i] + c66 * cons1.mx1[i] + dt66 * l2.mx1[i];
-        con2_mx2[i] = c33 * cons.mx2[i] + c66 * cons1.mx2[i] + dt66 * l2.mx2[i];
-        con2_mx3[i] = c33 * cons.mx3[i] + c66 * cons1.mx3[i] + dt66 * l2.mx3[i];
-        con2_bx1[i] = c33 * cons.bx1[i] + c66 * cons1.bx1[i] + dt66 * l2.bx1[i];
-        con2_bx2[i] = c33 * cons.bx2[i] + c66 * cons1.bx2[i] + dt66 * l2.bx2[i];
-        con2_bx3[i] = c33 * cons.bx3[i] + c66 * cons1.bx3[i] + dt66 * l2.bx3[i];
+        con2_m1[i] = c33 * cons.m1[i] + c66 * cons1.m1[i] + dt66 * l2.m1[i];
+        con2_m2[i] = c33 * cons.m2[i] + c66 * cons1.m2[i] + dt66 * l2.m2[i];
+        con2_m3[i] = c33 * cons.m3[i] + c66 * cons1.m3[i] + dt66 * l2.m3[i];
         con2_e[i] = c33 * cons.e[i] + c66 * cons1.e[i] + dt66 * l2.e[i];
     }
 
     let cons2 = Conserved{
         rho: con2_rho,
-        mx1: con2_mx1, 
-        mx2: con2_mx2,
-        mx3: con2_mx3,
-        bx1: con2_bx1,
-        bx2: con2_bx2,
-        bx3: con2_bx3,
+        m1: con2_m1, 
+        m2: con2_m2,
+        m3: con2_m3,
         e: con2_e,
     };
 
     cons2
-} 
+}
 
 /// Input:
+///     prims (&Primitives): the grid containing all the primitive variables for each cell
+///     init_conds (&InitConds): the initial conditions of the simulation
+///     drive (&Driver): the simulation parameters
 /// Output:
+///     dt (f64): the time step
 /// Description:
-pub fn determine_time_step_1d(prims: &Primitives, drive: &Driver, a_index: f64, dx1: f64, m: f64, e: f64) -> f64 {
+///     This function uses the cell_width, compute_time_step, distance, and gravity_time_step functions to 
+///     calculate the time step satisfying the Courant-Friedrich-Levy condition. This function checks for 
+///     non-finite values from non physical primitive variables.
+pub fn determine_t_step(prims: &Primitives, init_conds: &InitConds, drive: &Driver) -> f64 {
     let mut dt = f64::INFINITY;
-    let size = prims.p.len();
+    let n = prims.p.len();
 
-        for i in 1..(size - 2) {
-            let prim_fill_1 = (prims.p[i], prims.rho[i], prims.vx1[i], prims.vx2[i], prims.vx3[i], prims.bx1[i], prims.bx2[i], prims.bx3[i]);
-            let prim_fill_2 = (prims.p[i+1], prims.rho[i+1], prims.vx1[i+1], prims.vx2[i+1], prims.vx3[i+1], prims.bx1[i+1], prims.bx2[i+1], prims.bx3[i+1]);
+    let delta = cell_width(init_conds, drive);
 
-            let dt_check = math_func::compute_time_step_1d(prim_fill_1, prim_fill_2, a_index, dx1);
+        for i in 1..(n - 2) {
+            let prim_fill_1 = (prims.p[i], prims.rho[i], prims.v1[i], prims.v2[i], prims.v3[i]);
+            let prim_fill_2 = (prims.p[i+1], prims.rho[i+1], prims.v1[i+1], prims.v2[i+1], prims.v3[i+1]);
+
+            let dt_check = math_func::compute_time_step(prim_fill_1, prim_fill_2, init_conds.adiabatic_index, delta);
+
             assert!(
                 dt_check.is_finite(),
                 "non-finite dt at interface {}: p=({}, {}) rho=({}, {})",
@@ -536,9 +575,9 @@ pub fn determine_time_step_1d(prims: &Primitives, drive: &Driver, a_index: f64, 
             dt = dt.min(dt_check);
         }
 
-        for i in 2..(size - 2) {
-            let r = math_func::radial_distance(i, dx1);
-            let dt_grav = math_func::gravity_time_step(m, r, e, dx1);
+        for i in 2..(n - 2) {
+            let r = math_func::distance(i, delta);
+            let dt_grav = math_func::gravity_time_step(init_conds.bh_mass, r, init_conds.softness, delta);
             dt = dt.min(dt_grav);
         }
 
@@ -546,19 +585,21 @@ pub fn determine_time_step_1d(prims: &Primitives, drive: &Driver, a_index: f64, 
     dt
 }
 
-//////////////////////////////
-// Two Dimensional Functions
-//////////////////////////////
-
-
 //////////////////////
 // General Functions
 //////////////////////
 
 /// Input:
+///     prims (&Primitives): the grid containing all the primitive variables for each cell
+///     init_conds (&InitConds): the initial conditions of the simulation
+///     drive (&Driver): the simulation parameters
+///     t (f64): the time of the checkpoint
+///     check_count (i64): the chcekpoint number
 /// Output:
+///     A file containing the recorded values
 /// Description:
-pub fn write_checkpoint(prims: &Primitives, drive: &Driver, init_setup: &InitConds, t: f64, check_count: i64) -> Result<(), Box<dyn std::error::Error>> {
+///     This function writes the number of cells, grid range, and all primitive variables into txt files for plotting.
+pub fn write_checkpoint(prims: &Primitives, init_setup: &InitConds, drive: &Driver, t: f64, check_count: i64) -> Result<(), Box<dyn std::error::Error>> {
     let file_num = check_count.to_string();
     let file_type = ".txt".to_string();
     let file_name = format!("{}{}", file_num, file_type);
@@ -572,21 +613,14 @@ pub fn write_checkpoint(prims: &Primitives, drive: &Driver, init_setup: &InitCon
     let num_fill_x1 = format!("{} {}", "cell_num_x1:".to_string(), &(drive.x1_cell.to_string()+&" ".to_string()));
     let left_x1_fill = format!("{} {}", "left_x1_bound:".to_string(), &(drive.x1_range.0.to_string()+&" ".to_string()));
     let right_x1_fill = format!("{} {}", "right_x1_bound:".to_string(), &(drive.x1_range.1.to_string()+&" ".to_string()));
-
-    let num_fill_x2 = format!("{} {}", "cell_num_x2:".to_string(), &(drive.x2_cell.to_string()+&" ".to_string()));
-    let left_x2_fill = format!("{} {}", "left_x2_bound:".to_string(), &(drive.x2_range.0.to_string()+&" ".to_string()));
-    let right_x2_fill = format!("{} {}", "right_x2_bound:".to_string(), &(drive.x2_range.1.to_string()+&" ".to_string()));
     
     let mut p_string = "p: ".to_string();
     let mut rho_string = "rho: ".to_string();
-    let mut vx1_string = "vx1: ".to_string();
-    let mut vx2_string = "vx2: ".to_string();
-    let mut vx3_string = "vx3: ".to_string();
-    let mut bx1_string = "Bx1: ".to_string();
-    let mut bx2_string = "Bx2: ".to_string();
-    let mut bx3_string = "Bx3: ".to_string();
+    let mut v1_string = "v1: ".to_string();
+    let mut v2_string = "v2: ".to_string();
+    let mut v3_string = "v3: ".to_string();
 
-    let mut mdot_string = "M_dot: ".to_string();
+    //let mut mdot_string = "M_dot: ".to_string();
         
     for i in 0..size {
         let p_fill = prims.p[i].to_string() + &" ".to_string();
@@ -595,31 +629,22 @@ pub fn write_checkpoint(prims: &Primitives, drive: &Driver, init_setup: &InitCon
         let rho_fill = prims.rho[i].to_string() + &" ".to_string();
         rho_string.push_str(&rho_fill);
     
-        let vx1_fill = prims.vx1[i].to_string() + &" ".to_string();
-        vx1_string.push_str(&vx1_fill);
+        let v1_fill = prims.v1[i].to_string() + &" ".to_string();
+        v1_string.push_str(&v1_fill);
     
-        let vx2_fill = prims.vx2[i].to_string() + &" ".to_string();
-        vx2_string.push_str(&vx2_fill);
+        let v2_fill = prims.v2[i].to_string() + &" ".to_string();
+        v2_string.push_str(&v2_fill);
     
-        let vx3_fill = prims.vx3[i].to_string() + &" ".to_string();
-        vx3_string.push_str(&vx3_fill);
-    
-        let bx1_fill = prims.bx1[i].to_string() + &" ".to_string();
-        bx1_string.push_str(&bx1_fill);
-    
-        let bx2_fill = prims.bx2[i].to_string() + &" ".to_string();
-        bx2_string.push_str(&bx2_fill);
-    
-        let bx3_fill = prims.bx3[i].to_string() + &" ".to_string();
-        bx3_string.push_str(&bx3_fill);
+        let v3_fill = prims.v3[i].to_string() + &" ".to_string();
+        v3_string.push_str(&v3_fill);
     }
 
-    let dr = (drive.x1_range.1 - drive.x1_range.0) / (drive.x1_cell as f64);
-    let r = (math_func::radial_distance((drive.x1_cell as f64 /2.0) as usize, dr) + math_func::radial_distance(((drive.x1_cell as f64 /2.0)+1.0) as usize, dr)) / 2.0;
+    // let dr = (drive.x1_range.1 - drive.x1_range.0) / (drive.x1_cell as f64);
+    // let r = (math_func::radial_distance((drive.x1_cell as f64 /2.0) as usize, dr) + math_func::radial_distance(((drive.x1_cell as f64 /2.0)+1.0) as usize, dr)) / 2.0;
     //let mdot_fill = math_func::accretion_rate(r, prims.rho[(drive.x1_cell as f64 /2.0) as usize], prims.vx1[(drive.x1_cell as f64 /2.0) as usize]).to_string() 
-    let index = (drive.x1_cell as f64 /2.0) as usize;
-    let mdot_fill = (4.0 * PI * r * r * hll_1d(cell_loc(prims, index-1), cell_loc(prims, index), cell_loc(prims, index+1), cell_loc(prims, index+2), init_setup.adiabatic_index, index, index+1, dr, init_setup.bh_mass, init_setup.softness).0).to_string() + &" ".to_string();
-    mdot_string.push_str(&mdot_fill);
+    //let index = (drive.x1_cell as f64 /2.0) as usize;
+    //let mdot_fill = (4.0 * PI * r * r * hll_1d(cell_loc(prims, index-1), cell_loc(prims, index), cell_loc(prims, index+1), cell_loc(prims, index+2), init_setup.adiabatic_index, index, index+1, dr, init_setup.bh_mass, init_setup.softness).0).to_string() + &" ".to_string();
+    //mdot_string.push_str(&mdot_fill);
      
     let file = fs::OpenOptions::new()
         .write(true)
@@ -630,24 +655,18 @@ pub fn write_checkpoint(prims: &Primitives, drive: &Driver, init_setup: &InitCon
     let mut writer = BufWriter::new(file);
     
     writeln!(writer, "{}", num_fill_x1)?;
-    writeln!(writer, "{}", num_fill_x2)?;
     writeln!(writer, "{}", left_x1_fill)?;
     writeln!(writer, "{}", right_x1_fill)?;
-    writeln!(writer, "{}", left_x2_fill)?;
-    writeln!(writer, "{}", right_x2_fill)?;
 
     writeln!(writer, "{}", t_fill)?;
 
     writeln!(writer, "{}", p_string)?;
     writeln!(writer, "{}", rho_string)?;
-    writeln!(writer, "{}", vx1_string)?;
-    writeln!(writer, "{}", vx2_string)?;
-    writeln!(writer, "{}", vx3_string)?;
-    writeln!(writer, "{}", bx1_string)?;
-    writeln!(writer, "{}", bx2_string)?;
-    writeln!(writer, "{}", bx3_string)?;
+    writeln!(writer, "{}", v1_string)?;
+    writeln!(writer, "{}", v2_string)?;
+    writeln!(writer, "{}", v3_string)?;
 
-    writeln!(writer, "{}", mdot_string)?;
+    //writeln!(writer, "{}", mdot_string)?;
 
     writer.flush()?;
     

@@ -1,7 +1,7 @@
 // This is the main file of the hydro simulation.
 //
 // Author: Brayden JoHantgen
-// Last Update: 11/7/2026
+// Last Update: 11/8/2026
 
 ////////////
 // Imports
@@ -15,10 +15,6 @@ pub mod sim_func;
 pub mod test_conds;
 
 /*
-Look at radial profiles
-Amplitude needs to be lowered
-Normalize the accretion rate
-Truncation error causes the issue of sharp peak
 Look for Computation LRD papers, make a list, and add to Lit Review
 Radiative Transfer
 */
@@ -29,13 +25,13 @@ Radiative Transfer
 fn main() {
 
     // Initial Conditions
-    let init_setup = test_conds::bondi_accretion_state_3();
+    let init_setup = test_conds::bondi_accretion_state_5();
 
     let drive = sim_func::Driver{
                 cfl: 0.3,
                 tfinal: 5.381,
                 checkpoint: 0.0125,
-                x1_cell: 512,
+                x1_cell: 16,//512,
                 x1_range: (0.0, 1.0),
                 x2_cell: 0,
                 x2_range: (0.0, 0.0),
@@ -43,11 +39,11 @@ fn main() {
                 x3_range: (0.0, 0.0),
     };
 
-    //let test_prim = (init_setup.p.0, init_setup.rho.0, init_setup.vx1.0, init_setup.vx2.0, init_setup.vx3.0, init_setup.bx1.0, init_setup.bx2.0, init_setup.bx3.0);
-    //let test_value = math_func::time_unit(init_setup.bh_mass, init_setup.adiabatic_index, init_setup.p.0, init_setup.rho.0);
+    // Print Error Checking
+    //let test_prims = sim_func::init_prims(&init_setup, &drive);
+    //let test_value = sim_func::cons_from_prims(&test_prims, &init_setup, &drive);
     //println!("{:?}", test_value);
 
-    
     // Simulation Prerequisites
     let before = Instant::now();
 
@@ -56,32 +52,29 @@ fn main() {
     let mut time_step_count: f64 = 0.0;
     let mut check_count: i64 = 0;
 
-    let dr = (drive.x1_range.1 - drive.x1_range.0) / (drive.x1_cell as f64);
-    let mut prims = sim_func::init_prims_1d(&init_setup, &drive);
-    sim_func::apply_bcs_1d(&mut prims, &init_setup, &drive);
+    let mut prims = sim_func::init_prims(&init_setup, &drive);
+    sim_func::boundary_conds(&mut prims, &init_setup);
     let mut cons: sim_func::Conserved;
     let mut dt: f64;
-
-    //println!("{:?}", prims.rho);
     
-    let _ = sim_func::write_checkpoint(&prims, &drive, &init_setup, t, check_count);
+    let _ = sim_func::write_checkpoint(&prims, &init_setup, &drive, t, check_count);
     check_count += 1;
 
     // Running the Simulation 
     while t < drive.tfinal {
-        cons = sim_func::cons_from_prim_1d(&prims, init_setup.adiabatic_index, dr, init_setup.bh_mass, init_setup.softness);
+        cons = sim_func::cons_from_prims(&prims, &init_setup, &drive);
 
-        dt = sim_func::determine_time_step_1d(&prims, &drive, init_setup.adiabatic_index, dr, init_setup.bh_mass, init_setup.softness);
+        dt = sim_func::determine_t_step(&prims, &init_setup, &drive);
 
-        cons = sim_func::rk_step_1d(&prims, &cons, &init_setup, &drive, init_setup.adiabatic_index, dr, dt, init_setup.bh_mass, init_setup.softness);
-        prims = sim_func::prim_from_cons_1d(&cons, init_setup.adiabatic_index, dr, init_setup.bh_mass, init_setup.softness);
-        sim_func::apply_bcs_1d(&mut prims, &init_setup, &drive);
+        cons = sim_func::rk_step(&prims, &cons, &init_setup, &drive, dt);
+        prims = sim_func::prims_from_cons(&cons, &init_setup, &drive);
+        sim_func::boundary_conds(&mut prims, &init_setup);
 
         t += dt;
         time_step_count += 1.0;
 
         if t >= t_checkpoint {
-            let _ = sim_func::write_checkpoint(&prims, &drive, &init_setup, t, check_count);
+            let _ = sim_func::write_checkpoint(&prims, &init_setup, &drive, t, check_count);
             t_checkpoint += drive.checkpoint;
             check_count += 1;
         }
@@ -96,5 +89,4 @@ fn main() {
     println!("The number of timesteps: {:?}", time_step_count);
     println!("The runtime in seconds: {:?}", runtime);
     println!("The performance in zones per second: {:.2?}", performance);
-   
 }

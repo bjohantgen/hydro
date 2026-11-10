@@ -2,7 +2,7 @@
 // to supplement the "hydro" code.
 //
 // Author: Brayden JoHantgen
-// Last Update: 11/3/2026
+// Last Update: 11/9/2026
 
 //////////////
 // Importing 
@@ -20,14 +20,15 @@ pub fn sod_shock() -> sim_func::InitConds {
         discontinuity: 0.5,
         bh_mass: 0.0,
         softness: 0.0,
+        length: 0.0,
         p: (1.0, 0.125),
         rho: (1.0, 0.1),
-        vx1: (0.0, 0.0), 
-        vx2: (0.0, 0.0),
-        vx3: (0.0, 0.0),
-        bx1: (0.0, 0.0),
-        bx2: (0.0, 0.0),
-        bx3: (0.0, 0.0),
+        v1: (0.0, 0.0), 
+        v2: (0.0, 0.0),
+        v3: (0.0, 0.0),
+        b1: (0.0, 0.0),
+        b2: (0.0, 0.0),
+        b3: (0.0, 0.0),
     };
     sod
 }
@@ -39,14 +40,15 @@ pub fn hard_shock() -> sim_func::InitConds {
         discontinuity: 0.5,
         bh_mass: 0.0,
         softness: 0.0,
+        length: 0.0,
         p: (100.0, 1.0),
         rho: (10.0, 1.0),
-        vx1: (0.0, 0.0), 
-        vx2: (0.0, 0.0),
-        vx3: (0.0, 0.0),
-        bx1: (0.0, 0.0),
-        bx2: (0.0, 0.0),
-        bx3: (0.0, 0.0),
+        v1: (0.0, 0.0), 
+        v2: (0.0, 0.0),
+        v3: (0.0, 0.0),
+        b1: (0.0, 0.0),
+        b2: (0.0, 0.0),
+        b3: (0.0, 0.0),
     };
     hard
 }
@@ -58,33 +60,35 @@ pub fn brio_wu_shock() -> sim_func::InitConds {
         discontinuity: 0.5,
         bh_mass: 0.0,
         softness: 0.0,
+        length: 0.0,
         p: (1.0, 0.1),
         rho: (1.0, 0.125),
-        vx1: (0.0, 0.0), 
-        vx2: (0.0, 0.0),
-        vx3: (0.0, 0.0),
-        bx1: (0.75, 0.75),
-        bx2: (1.0, -1.0),
-        bx3: (0.0, 0.0),
+        v1: (0.0, 0.0), 
+        v2: (0.0, 0.0),
+        v3: (0.0, 0.0),
+        b1: (0.75, 0.75),
+        b2: (1.0, -1.0),
+        b3: (0.0, 0.0),
     };
     bw
 }
 
 // Bondi-Accretion
-pub fn bondi_accretion_state_3() -> sim_func::InitConds {
+pub fn bondi_accretion_state_5() -> sim_func::InitConds {
     let bondi = sim_func::InitConds{
         adiabatic_index: 5.0 / 3.0,
         discontinuity: 0.0,
-        bh_mass: 1.0,
-        softness: 4.0,
+        bh_mass: 0.5,
+        softness: 5.0,
+        length: 64.0,
         p: (3.0 / 5.0, 0.0),
         rho: (1.0, 0.0),
-        vx1: (0.0, 0.0), 
-        vx2: (0.0, 0.0),
-        vx3: (0.0, 0.0),
-        bx1: (0.0, 0.0),
-        bx2: (0.0, 0.0),
-        bx3: (0.0, 0.0),
+        v1: (0.0, 0.0), 
+        v2: (0.0, 0.0),
+        v3: (0.0, 0.0),
+        b1: (0.0, 0.0),
+        b2: (0.0, 0.0),
+        b3: (0.0, 0.0),
     };
     bondi
 }

@@ -1,7 +1,7 @@
 // This file is full of functions to supplement the "hydro" code.
 //
 // Author: Brayden JoHantgen
-// Last Update: 11/7/2026
+// Last Update: 11/9/2026
 
 ////////////
 // Imports
@@ -20,151 +20,229 @@ pub type Cell3 = (f64, f64, f64);
 ////////////////////////////////
 
 /// Input:
-///     prim (Cell8): the primitive variables of a single cell
-///     a_index (f64): the adiabatic index of the gas
+///     prim (Cell5): the primitive variables of a cell
+///     a_ind (f64): the adiabatic index of the gas
 /// Output:
-///     a (f64): the sound speed of the gas
+///     c (f64): the sound speed of the gas
 /// Description:
-///     Equation: c_s = sqrt(gamma * P / rho)
-///     This function calculates the sound speed using the equation above.
-///     This function does not check for negative arguments of the square root.
-pub fn sound_speed(prim: Cell8, a_index: f64) -> f64 {
-    let a = (a_index * prim.0 / prim.1).sqrt();
-    a
+///     Equation: c^2 = gamma * P / rho
+///     This function calculates the sound speed of the gas.
+///     It does no error checking.
+pub fn sound_speed(prim: Cell5, a_ind: f64) -> f64 {
+    let c = (a_ind * prim.0 / prim.1).sqrt();
+    c
 }
 
 /// Input:
-///     m (f64): the black hole mass
-///     a_index (f64): the adiabatic index of the gas
-///     p_infinity (f64): the pressure of the gas at infinity
-///     rho_infinity (f64): the density of the gas at infinity
+///     prim (Cell5): the primitive variables of a cell
+///     a_ind (f64): the adiabatic index of the gas
+///     m_bh (f64): the mass of the black hole
 /// Output:
-///     rb (f64): the Bondi radius of the black hole with mass m
+///     rb (f64): the Bondi radius
 /// Description:
-///     Equation: R_b = G * M / (c_s)^2
-///     This function calculates the Bondi radius of a black hole and assumes G = 1.
-///     This function does not check for negative arguments of the square root.
-pub fn bondi_radius(m: f64, a_index: f64, p_infinity: f64, rho_infinity: f64) -> f64 {
-    let c_s = (a_index * p_infinity / rho_infinity).sqrt();
-    let rb = m / (f64::powf(c_s, 2.0));
+///     Equation: Rb = G * M / c^2
+///     This function uses the sound_speed function to calculate the 
+///     Bondi radius. G = 1 and this function does no error checking.
+pub fn bondi_radius(prim: Cell5, a_ind: f64, m_bh: f64) -> f64 {
+    let c = sound_speed(prim, a_ind);
+
+    let rb = m_bh / (f64::powf(c, 2.0));
     rb
 }
 
 /// Input:
-///     m (f64): the black hole mass
-///     a_index (f64): the adiabatic index of the gas
-///     p_infinity (f64): the pressure of the gas at infinity
-///     rho_infinity (f64): the density of the gas at infinity
+///     prim (Cell5): the primitive variables of a cell
+///     a_ind (f64): the adiabatic index of the gas
+///     m_bh (f64): the mass of the black hole
 /// Output:
 ///     m_dot (f64): the Bondi accretion rate
 /// Description:
-///     Equations: M_dot = 4 * pi * lamda_c * (G * M)^2 * c_s^-3 * rho_infinity
-///                c_s = sqrt(gamma * p_infinity / rho_infinity)
-///                lamda_c = (1/2)^((gamma + 1) / (2 * (gamma - 1))) * ((5 - 3 * gamma) / 4)^(-(5 - 3 * gamma) / (2 * (gamma - 1)))
-///     This function calculates the Bondi accretion rate and assumes G = 1.
-///     This function does not check for negative arguments of the square root.
-pub fn bondi_accretion_rate(m: f64, a_index: f64, p_infinity: f64, rho_infinity: f64) -> f64 {
-    let l_c = f64::powf(0.5, (a_index + 1.0) / (2.0 * (a_index - 1.0))) * f64::powf((5.0 - 3.0 * a_index) / 4.0, -(5.0 - 3.0 * a_index) / (2.0 * (a_index - 1.0)));
-    let c_s = (a_index * p_infinity / rho_infinity).sqrt();
-    let m_dot = 4.0 * PI * l_c * f64::powf(m, 2.0) * rho_infinity / (f64::powf(c_s, 3.0));
+///     Equation: M_dot = 4 * pi * lambda * Rb^2 * rho * c
+///     This function uses the sound_speed and the bondi_radius functions
+///     to calculate the Bondi accretion rate. This function does no error checking.
+pub fn bondi_accretion(prim: Cell5, a_ind: f64, m_bh: f64) -> f64 {
+    let c = sound_speed(prim, a_ind);
+    let rb = bondi_radius(prim, a_ind, m_bh);
+
+    let exponent_1 = (a_ind + 1.0) / (2.0 * (a_ind - 1.0));
+    let exponent_2 = (3.0 * a_ind - 5.0) / (2.0 * (a_ind - 1.0));
+    let lambda = (f64::powf(0.5, exponent_1)) * (f64::powf((5.0 - 3.0 * a_ind) / 4.0, exponent_2));
+
+    let m_dot = 4.0 * PI * lambda * (f64::powf(rb, 2.0)) * prim.1 * c;
     m_dot
 }
 
 /// Input:
-///     m (f64): the black hole mass
-///     a_index (f64): the adiabatic index of the gas
-///     p_infinity (f64): the pressure of the gas at infinity
-///     rho_infinity (f64): the density of the gas at infinity
+///     prim (Cell5): the primitive variables of a cell
+///     a_ind (f64): the adiabatic index of the gas
+///     m_bh (f64): the mass of the black hole
 /// Output:
-///     t (f64): the characteristic time of the simulation
+///     bt (f64): the characteristic Bondi timescale
 /// Description:
-///     Equation: t = r_b / c_infinity
-///     This function uses the Bondi radius function to calculate the characteristic
-///     time of the simulation.
-pub fn time_unit(m: f64, a_index: f64, p_infinity: f64, rho_infinity: f64) -> f64 {
-    let r_b = bondi_radius(m, a_index, p_infinity, rho_infinity);
-    let c_s = (a_index * p_infinity / rho_infinity).sqrt();
-    let t = r_b / c_s;
-    t
+///     Equation: T_b = R_b / c
+///     This function calculates the Bondi timescale. It does no
+///     error checking.
+pub fn bondi_time(prim: Cell5, a_ind: f64, m_bh: f64) -> f64 {
+    let c = sound_speed(prim, a_ind);
+    let rb = bondi_radius(prim, a_ind, m_bh);
+
+    let bt = rb / c;
+    bt
+}
+
+/// Input:
+///     prim (Cell5): the primitive variables of a cell
+///     a_ind (f64): the adiabatic index of the gas
+/// Output:
+///     epsilon (f64): the internal energy density
+/// Description:
+///     Equation: epsilon = P / (rho * (gamma - 1))
+///     This equation calcualtes the internal energy density and
+///     does not check for errors.
+pub fn internal_energy(prim: Cell5, a_ind: f64) -> f64 {
+    let epsilon = prim.0 / (prim.1 * (a_ind - 1.0));
+    epsilon
 }
 
 /// Input:
 ///     i_num (usize): the index number of the cell
-///     dr (f64): the width of a cell radially
+///     delta (f64): the width of a cell
 /// Output:
-///     r (f64): the radial distance of the cell
+///     r (f64): the radial distance 
 /// Description:
-///     This function takes the location of a cell to calculate its
-///     radial distance from the left most edge of the simulation.
-///     Currently this function is only 1D.
-pub fn radial_distance(i_num: usize, dr: f64) -> f64 {
-    let r = (i_num as f64) * dr;
-    r 
+///     This function solves for the distance from the leftmost edge of
+///     a one-dimensional grid. There is no error checking.
+pub fn distance(i_num: usize, delta: f64) -> f64 {
+    let r = (i_num as f64) * delta;
+    r
 }
 
 /// Input:
-///     m (f64): the black hole mass
+///     m_bh (f64): the mass of the black hole
+///     r (f64): the distance from the black hole
+///     s (f64): the softening parameter
+///     delta (f64): the width of a cell
 /// Output:
+///     phi (f64): the gravitational potential 
 /// Description:
-pub fn gravity(m:f64, r: f64, e: f64, dx1: f64) -> f64 {
-    let numerator = -1.0 * m;
-    let denominator = f64::powf(r, 2.0) + (f64::powf(e, 2.0))* (f64::powf(dx1, 2.0)) * f64::exp(-f64::powf(r, 2.0) / (f64::powf(e, 2.0) * f64::powf(dx1, 2.0)));
-    let p = numerator / (denominator.sqrt());
-    p
+///     Equation: phi = - G * M / sqrt(r^2 + r_soft)
+///               r_soft = s^2 * delta^2 * exp(- r^2 * s^-2 * delta^-2)
+///     This function calculates the gravitational potential a distance r
+///     away from the black hole. There is no error checking.
+pub fn grav_potential(m_bh: f64, r: f64, s: f64, delta: f64) -> f64 {
+    let r_soft = (f64::powf(s, 2.0)) * (f64::powf(delta, 2.0)) * f64::exp(-f64::powf(r, 2.0) / (f64::powf(s, 2.0) * f64::powf(delta, 2.0)));
+    let phi = - m_bh / ((f64::powf(r, 2.0)) + r_soft).sqrt();
+    phi
 }
 
 /// Input:
-///     prim (Cell8): the primitive variables of the cell
-///     a_index (f64): the adiabatic index
+///     m_bh (f64): the mass of the black hole
+///     r (f64): the distance from the black hole
+///     s (f64): the softening parameter
+///     delta (f64): the width of a cell
+/// Output:
+///     g (f64): the gravitational acceleration
+/// Description:
+///     Equation: g = - G * M * r * (1 - e) / (r^2 + s^2 * delta^2 * e)^(3/2)
+///               e = exp(- r^2 * s^-2 * delta^-2)
+///     This function calculates the gravitational acceleration. It does no 
+///     error checking.
+pub fn grav_acceleration(m_bh: f64, r: f64, s: f64, delta: f64) -> f64 {
+    let soft_length = f64::powf(s * delta, 2.0);
+    let exponent = f64::exp(- (f64::powf(r, 2.0)) / soft_length);
+    let denominator = f64::powf(r, 2.0) + soft_length * exponent;
+    let g = - m_bh * r * (1.0 - exponent) / (f64::powf(denominator, 1.5));
+    g
+}
+
+/// Input:
+///     prim (Cell5): the primitive variables of a cell
+///     a_ind (f64): the adiabatic index of the gas
+///     m_bh (f64): the mass of the black hole
 ///     i_num (usize): the index of the cell
-///     dx1 (f64): the width of a cell
-///     m (f64): the mass of the black hole
-///     e (f64): the softening parameter
+///     s (f64): the softening parameter
+///     delta (f64): the width of a cell
 /// Output:
-///     tot_energy (f64): the total energy density
+///     energy (f64): the total energy of the cell
 /// Description:
-///     Equation: E = rho * (u^2/2 + epsilon + phi)
-///     This function uses the radial distance and gravity functions to calculate
-///     the toal energy density of the desired cell. 
-pub fn total_energy_cart(prim: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64) -> f64 {
-    let energy = 0.5 * prim.1 * (prim.2 * prim.2 + prim.3 * prim.3 + prim.4 * prim.4) + prim.0 / (a_index - 1.0) + 0.5 * (prim.5 * prim.5 + prim.6 * prim.6 + prim.7 * prim.7);
-    let position = radial_distance(i_num, dx1);
-    let grav = gravity(m, position, e, dx1);
-    let tot_energy = energy + prim.1 * grav;
-    tot_energy
+///     Equation: E = rho * (v^2/2 + epsilon + phi)
+///     This functin uses the distance, grav_potential, and internal_energy functions
+///     to calculate the total energy of the cell. This function does no error checking.
+pub fn total_energy(prim: Cell5, a_ind: f64, m_bh: f64, i_num: usize, s: f64, delta: f64) -> f64 {
+    let r = distance(i_num, delta);
+    let phi = grav_potential(m_bh, r, s, delta);
+    let epsilon = internal_energy(prim, a_ind);
+
+    let v2 = prim.2 * prim.2 + prim.3 * prim.3 + prim.4 * prim.4;
+    let energy = prim.1 * (0.5 * v2 + epsilon + phi);
+    energy
 }
 
 /// Input:
+///     prim (Cell5): the primitive variables of a cell
+///     a_ind (f64): the adiabatic index of the gas
 /// Output:
+///     m (f64): the mach number of the gas
 /// Description:
-pub fn flux_x(prim: Cell8, a_index: f64, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
-    let p = total_pressure_cart(prim);
-    let energy = total_energy_cart(prim, a_index, i_num, dx1, m, e);
+///     Equation: M = v / c
+///     This function uses the sound speed function to calculate
+///     the mach number. There is no error checking.
+pub fn mach_number(prim: Cell5, a_ind:f64) -> f64 {
+    let c = sound_speed(prim, a_ind);
+    
+    let v = (prim.2 * prim.2 + prim.3 * prim.3 + prim.4 * prim.4).sqrt();
+    let m = v / c;
+    m
+}
+
+/// Input:
+///     prim (Cell5): the primitive variables of a cell
+///     a_ind (f64): the adiabatic index of the gas
+///     m_bh (f64): the mass of the black hole
+///     i_num (f64): the index of the cell
+///     s (f64): the softening parameter
+///     delta (f64): the width of a cell
+/// Output:
+///     flux (Cell5): the flux of a cell
+/// Description:
+///     This function uses the total_energy function to calculate the flux.
+///     There is no error checking.
+pub fn flux(prim: Cell5, a_ind: f64, m_bh: f64, i_num: usize, s: f64, delta: f64) -> Cell5 {
+    let e = total_energy(prim, a_ind, m_bh, i_num, s, delta);
+
     let f0 = prim.1 * prim.2;
-    let f1 = prim.1 * prim.2 * prim.2 + p - prim.5 * prim.5;
-    let f2 = prim.1 * prim.2 * prim.3 - prim.5 * prim.6;
-    let f3 = prim.1 * prim.2 * prim.4 - prim.5 * prim.7;
-    let f4 = 0.0;
-    let f5 = prim.6 * prim.2 - prim.5 * prim.3;
-    let f6 = prim.7 * prim.2 - prim.5 * prim.4;  
-    let f7 = (energy + p) * prim.2 - prim.5 * (prim.2 * prim.5 + prim.3 * prim.6 + prim.4 * prim.7);
-    let f = (f0, f1, f2, f3, f4, f5, f6, f7);
-    f
+    let f1 = prim.1 * prim.2 * prim.2 + prim.0;
+    let f2 = prim.1 * prim.2 * prim.3;
+    let f3 = prim.1 * prim.2 * prim.4;
+    let f4 = prim.2 * (e + prim.0);
+
+    let flux = (f0, f1, f2, f3, f4);
+    flux
 }
 
 /// Input:
+///     prim (Cell5): the primitive variables of a cell
+///     m_bh (f64): the mass of the black hole
+///     i_num (f64): the index of the cell
+///     s (f64): the softening parameter
+///     delta (f64): the width of a cell
 /// Output:
+///     source (f64): the source of the cell
 /// Description:
-pub fn source(prim:Cell8, i_num: usize, dx1: f64, m: f64, e: f64) -> Cell8 {
-    let r = radial_distance(i_num, dx1);
-    let grav = gravity(m, r, e, dx1);
+///     This function uses the distance and grav_acceleration functions to calculate the source
+///     terms. There is no error checking.
+pub fn source(prim: Cell5, m_bh: f64, i_num: usize, s: f64, delta: f64) -> Cell5 {
+    let r = distance(i_num, delta);
+    let g = grav_acceleration(m_bh, r, s, delta);
+
     let s0 = 0.0;
-    let s1 = (-2.0 / r) * prim.0 + prim.1 * grav;
+    let s1 = (- 2.0 * prim.0 / r) + prim.1 * g;
     let s2 = 0.0;
     let s3 = 0.0;
-    let s7 = prim.1 * prim.2 * grav;
-    let s = (s0, s1, s2, s3, 0.0, 0.0, 0.0, s7);
-    s
+    let s4 = prim.1 * prim.2 * g;
+
+    let source = (s0, s1, s2, s3, s4);
+    source
 }
 
 //////////////////////////////////
@@ -280,21 +358,23 @@ pub fn plm_reconstruction(ci: f64, cip1: f64, cip2: f64, cim1: f64, left: bool) 
 }
 
 /// Input:
-///     prim_l (Cell8): the primitive variables for the left cell
-///     prim_r (Cell8): the primitive variables for the right cell
-///     a_index (f64): the adiabatic index
-///     dx1 (f64): the width of a cell
+///     prim_l (Cell5): the primitive variables for the left cell
+///     prim_r (Cell5): the primitive variables for the right cell
+///     a_ind (f64): the adiabatic index
+///     dx (f64): the width of a cell
 /// Output:
 ///     dt (f64): the timestep allowed for those cells
 /// Description:
 ///     This function uses the sound_speed and tuple_max functions to determine
 ///     the timestep satisfied by the Courant-Friedrich-Levy condition.
-pub fn compute_time_step_1d(prim_l: Cell8, prim_r: Cell8, a_index: f64, dx1: f64) -> f64 {
-    let cf_l = sound_speed(prim_l, a_index);
+pub fn compute_time_step(prim_l: Cell5, prim_r: Cell5, a_ind: f64, dx: f64) -> f64 {
+    let cf_l = sound_speed(prim_l, a_ind);
+
     let plus_l = cf_l + prim_l.2;
     let minus_l = prim_l.2 - cf_l;
 
-    let cf_r = sound_speed(prim_r, a_index); 
+    let cf_r = sound_speed(prim_r, a_ind); 
+
     let plus_r = cf_r + prim_r.2; 
     let minus_r = prim_r.2 - cf_r;
 
@@ -304,20 +384,28 @@ pub fn compute_time_step_1d(prim_l: Cell8, prim_r: Cell8, a_index: f64, dx1: f64
     let mut dt: f64 = 0.0;
     
     if a_minus > a_plus {
-        dt += dx1 / a_minus;
+        dt += dx / a_minus;
     } else {
-        dt += dx1 / a_plus;
+        dt += dx / a_plus;
     }    
     dt
 }
 
 /// Input:
+///     m (f64): mass of the black hole
+///     r (f64): the distance from the black hole
+///     s (f64): the softness parameter
+///     dr (f64): the size of a cell
 /// Output:
+///     the gravity timestep
 /// Description:
-pub fn gravity_time_step(m: f64, r: f64, e: f64, dx1: f64) -> f64 {
-    let g = gravity(m, r, e, dx1).abs();
+///     This function uses the grav_acceleration to calculate the gravity
+///     timestep. There is no error checking.
+pub fn gravity_time_step(m: f64, r: f64, s: f64, dr: f64) -> f64 {
+    let g = grav_acceleration(m, r, s, dr).abs();
+
     if g > 0.0 {
-        (dx1 / g).sqrt()
+        (dr / g).sqrt()
     } else {
         f64::INFINITY
     }
